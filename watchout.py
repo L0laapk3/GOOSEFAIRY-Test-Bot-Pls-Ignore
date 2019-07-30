@@ -1,13 +1,21 @@
 import math
-
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.agents.base_agent import  SimpleControllerState
-
 from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics, Vector3 as vector3, Rotator
 
 from objects import *
 from states import *
+from states2 import *
+
+'''
+
+if self.opponents[0].location[2]>200 or abs(self.ball.location[1])> 5100:
+            car = CarState(boost_amount=100, physics=Physics(velocity=vector3(0,0,0),angular_velocity=vector3(0,0,0),location=vector3(0,0,20),rotation=Rotator(0,-1,0)))
+            ball = BallState(physics=Physics(location=vector3(0,3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(10,0,0)))
+            game = GameState(ball=ball, cars = {self.index: car})
+            self.set_game_state(game)
+'''
 
 class watchout(BaseAgent):
     def initialize_agent(self):
@@ -15,40 +23,39 @@ class watchout(BaseAgent):
         self.ball = ballObject()
         self.teammates = []
         self.opponents = []
-        self.clock = 0
-        self.states = [atba2()]
+        
+        self.states = [vector_shot_test()]
         self.state = self.states[0]
         self.c = SimpleControllerState()
 
-        self.lastv = 0
-        self.lastt = 0
+        self.time = 0.0
+        self.sinceJump = 0.0
+        #need to get boostpad info
 
-        self.time = 0
-        self.sinceJump = 0
-        #need to get boost info
+    def test(self):
+        car = CarState(boost_amount=100, physics=Physics(velocity=vector3(0,0,0),angular_velocity=vector3(0,0,0),location=vector3(3000,3000,20),rotation=Rotator(0,1.5,0)))
+        ball = BallState(physics=Physics(location=vector3(0,-side(self.team)*3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(0,0,3000)))
+        game = GameState(ball=ball, cars = {self.index: car})
+        self.set_game_state(game)
+        self.state = vector_shot_test()
         
+    
     def refresh(self):
-        self.c = SimpleControllerState()
+        self.c.__init__() #don't hurt me pls
         return self.c
         
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         self.process(packet)
-        elapsed = self.time - self.lastt
-        v = self.opponents[0].matrix.dot(self.opponents[0].velocity)[0]
-        acc = (v - self.lastv) / cap(elapsed,0.0001,2.0)
-        #print(v, acc)
-        self.lastt = self.time
-        self.lastv = v
-        #print(self.opponents[0].rvel)
-        if self.opponents[0].location[2]>200 or abs(self.ball.location[1])> 5100:
-            car = CarState(boost_amount=100, physics=Physics(velocity=vector3(0,0,0),angular_velocity=vector3(0,0,0),location=vector3(0,0,20),rotation=Rotator(0,-1,0)))
-            ball = BallState(physics=Physics(location=vector3(0,-3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(10,0,0)))
-            game = GameState(ball=ball, cars = {self.index: car})
-            self.set_game_state(game)
-        return self.state.execute(self)
+        self.refresh()
+        if self.opponents[0].location[2]>200:# or abs(self.ball.location[1])> 5100:
+            self.test()
+        controller = self.state.execute(self)
+        #print(controller.jump)
+        return controller
 
     def process(self,packet):
-        self.sinceJump += packet.game_info.seconds_elapsed-self.time
+        elapsed = packet.game_info.seconds_elapsed-self.time
+        self.sinceJump += elapsed
         self.time = packet.game_info.seconds_elapsed
         self.ball.update(packet.game_ball)
         for i in range(packet.num_cars):

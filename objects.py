@@ -1,12 +1,12 @@
 import math
-
+'''
 class Target:
     def __init__(self,location,velocity):
         self.location = location
         self.velocity = velocity
     def local(self,matrix):
         return Target(matrix.dot(self))
-
+'''
 class carObject:
     def __init__(self, index, car=None):
         self.location = Vector3(0,0,0)
@@ -15,7 +15,7 @@ class carObject:
         self.rvel = Vector3(0,0,0)
         self.team = 0
         self.boost= 0
-        self.airborn = False
+        self.airborne = False
         self.index = index
         if car != None:
             self.update(car)
@@ -27,8 +27,7 @@ class carObject:
         self.rvel.data = self.matrix.dot([packet.physics.angular_velocity.x,packet.physics.angular_velocity.y,packet.physics.angular_velocity.z])
         self.team = packet.team
         self.boost = packet.boost
-        self.airborn = not packet.has_wheel_contact
-
+        self.airborne = not packet.has_wheel_contact
 
 class ballObject:
     def __init__(self):
@@ -62,13 +61,15 @@ class Matrix3:
 
     def dot(self,vector):
         return Vector3(self.data[0].dot(vector),self.data[1].dot(vector),self.data[2].dot(vector))
-    
+
+'''
 class Matrix2:
     def __init__(self,theta):
         self.data = [[math.cos(theta),-math.sin(theta)],[math.sin(theta), math.cos(theta)]]
     def dot(self,vector):
         return Vector3(self.data[0][0]*vector[0] + self.data[1][0]*vector[1], self.data[0][1]*vector[0] + self.data[1][1]*vector[1], 0)
-    
+'''
+
 class Vector3:
     def __init__(self, *args):
         self.data = args[0] if isinstance(args[0],list) else [x for x in args]
@@ -101,5 +102,24 @@ class Vector3:
         return Vector3(self[0],self[1],0)
     def render(self):
         return [self[0],self[1]]
-
-
+    def copy(self):
+        return Vector3(self.data[:])
+    def angle(self,value):
+        return math.acos(self.dot(value))
+    def clamp(self,start,end):
+        if self.sign(start) >= 0:
+            if self.sign(end) <= 0 :
+                return self
+            else:
+                return end
+        else:
+            return start
+    def side(self,value):
+        temp = self.cross([0,0,1]).dot(value)
+        if temp > 0:
+            return 1
+        elif temp == 0:
+            return 0
+        else:
+            return -1
+    

@@ -1,20 +1,74 @@
-
 from objects import *
 from util import *
 import time
 
 
-"""
-    if agent.me.airborn:
-        yaw_to = math.atan2(lv[1],lv[0])
-        yaw_adjust = cap(math.atan2(dv[1],dv[0]), -0.6, 0.6)
-        pitch_to = math.atan2(lv[2],lv[0])
-        roll_to = math.atan2(lv[1],lv[2])
-        c.yaw = steerPD(yaw_to+yaw_adjust, -agent.me.rvel[2]/4.5)
-        c.pitch = steerPD(pitch_to, agent.me.rvel[0]/4.5)
-        c.roll = steerPD(roll_to, agent.me.rvel[1])
-        return c
-"""
+class shotMaker():
+    def __init__(self,target,vector,time,flip = True):
+        self.expired = False
+        self.temp = 0
+        self.target = target
+        self.vector = vector
+        self.time = time
+        self.flip = flip
+        
+    def temp_finder(self,agent):
+        self.temp = 0
+
+        predict = agent.get_ball_prediction_struct()
+        for i in range(10, predict.num_slices, 20):
+            self.time = predict.slices[i].game_seconds
+            time = self.time - agent.time
+            loc = predict.slices[i].physics.location
+            ball = Vector3(loc.x,loc.y,loc.z)
+
+            self.vector = (ball.flatten()-Vector3(0,5100*-side(agent.team),0)).normalize()
+            self.target = ball.flatten()+(self.vector*90)
+            local = agent.me.matrix.dot(self.target-agent.me.location)
+            current_speed = agent.me.matrix.dot(agent.me.velocity)[0]
+            angle = math.atan2(local[1],local[0])
+            
+            distance_remaining = (self.target-agent.me.location).magnitude() + (400*angle)
+            acceleration_time_needed = (2 * ((distance_remaining/time)-current_speed))/(time*1000)
+
+            if acceleration_time_needed < time-1:
+                break
+
+    def execute(self,agent):
+        time = cap(self.time - agent.time,0.001,10)
+        if self.time - agent.time< -0.5:
+            self.temp += 1
+        projection = (agent.me.location - self.target).magnitude()#.dot(self.vector))
+        #need to add additional distance to account for car rotation/shape
+        drive_target = self.target + (self.vector * (projection/2)) #need to allow this ratio to adjust
+
+        current_speed = agent.me.matrix.dot(agent.me.velocity)[0]
+        available_acceleration_time = cap(agent.me.boost / 33.3,0,time)
+        distance_remaining = (agent.me.location - self.target).magnitude() #need to add turn logic & distance math
+
+        acceleration_time_needed = (2 * ((distance_remaining/time)-current_speed))/(time*1000)
+
+        ratio = acceleration_time_needed/(available_acceleration_time + 0.5)
+        
+        
+        drive_speed = current_speed + sign(ratio-1)*(100*ratio)
+        agent.renderer.begin_rendering("b")
+        agent.renderer.draw_rect_3d(self.target,10,10, True, agent.renderer.create_color(255,0,0,255))
+        agent.renderer.draw_rect_3d(drive_target,10,10, True, agent.renderer.create_color(255,0,255,0))
+        agent.renderer.end_rendering()
+        
+        return test(agent,drive_target,drive_speed)
+              
+        #return vc(agent, drive_target, time)
+                
+        
+
+def shottarget(agent,target,vector):
+    target_line = Line(agent.me.location, target)
+    points = []
+    current = agent.me.location
+    #aerial_space = target[2]
+    #jump_point = target - (vector * aerial_space)
 
 class atba2:
     def __init__(self):
@@ -36,48 +90,28 @@ class atba2:
         agent.renderer.end_rendering()
         return vc(agent,self.target, time)
 
-def sa(agent,target,speed):
-    c = agent.refresh()
-    target_local = agent.me.matrix.dot(target-agent.me.location)
-    vel_local = agent.me.matrix.dot(agent.me.velocity)
-    direction = sign(target_local[1]) if abs(vel_local[1]) < 100 else sign(vel_local[1])
-
-    c.steer,c.yaw,c.pitch,c.roll,angle = defaultPD(agent, target_local, True)
-
-    c.throttle,c.boost = throttle(speed,)
-    
-    
-    
-    
-    
-
 def vc(agent,target,time):
     c = agent.refresh()
-    lt = agent.me.matrix.dot(target-agent.me.location)
-    lv = agent.me.matrix.dot(agent.me.velocity)
-    d = lt.flatten().magnitude()
+    local_target = agent.me.matrix.dot(target-agent.me.location)
+    local_velocity = agent.me.matrix.dot(agent.me.velocity)
+    distance = local_target.flatten().magnitude()
 
-    speed = cap(d / time,0,2300)
+    speed = cap(distance / time ,0,2300)
         
-    r = radius(lv[0])
-    slowdown = (Vector3(0,sign(lt[0])*(r+40),0)-lt.flatten()).magnitude() / cap(r*1.5,1,1200)
+    r = radius(local_velocity[0])
+    slowdown = (Vector3(0,sign(local_target[1])*(r+40),0)-local_target.flatten()).magnitude() / cap(r*1.5,1,1200)
     speed = cap(speed*slowdown,0,speed)
-    s = math.atan2(lt[1],lt[0])
-    c.steer = steerPD(s,0)
-    c.yaw = steerPD(s,-agent.me.rvel[2]/4.5)
-    c.pitch = steerPD(math.atan2(lt[2],lt[0]), agent.me.rvel[1]/5)
-    up = agent.me.matrix.dot(Vector3(0,0,agent.me.location[2]))
-    c.roll = steerPD(math.atan2(up[1],up[2]), agent.me.rvel[0]/5)
-    if abs(lv[0]) < 250:
-        c.throttle, c.boost = throttle(speed,lv[0],sign(lt[0]))
+    angles = defaultPD(agent, local_target)
+    if abs(local_velocity[0]) < 250:
+        c.throttle, c.boost = throttle(speed,local_velocity[0],sign(local_target[0]))
     else:
-        c.throttle, c.boost = throttle(speed,lv[0],sign(lv[0]))        
+        c.throttle, c.boost = throttle(speed,local_velocity[0],sign(local_velocity[0]))        
         
-    if (lv[0] < -150 and d > abs(2 * lv[0]) and abs(lt[0])/65 > abs(lt[1])) or agent.sinceJump <= 0.25:
-        flip(agent,c,lt)
+    if (local_velocity[0] < -150 and distance > abs(2 * local_velocity[0]) and abs(local_target[0])/65 > abs(local_target[1])) or agent.sinceJump <= 0.25:
+        flip(agent,c,local_target)
     return c
 
-class atba:
+class atbaTest:
     def __init__(self):
         self.expired = False
     def ready(self,agent):
@@ -128,47 +162,10 @@ def test(agent,target,speed):
     else:
         c.handbrake = False
     speed = cap(speed*cool,0,speed)
-    
-    yaw = math.atan2(local[1],local[0])
 
-    c.steer = steerPD(yaw,0)
+    defaultPD(agent, local)
+    
     c.throttle, c.boost = throttle(speed,v[0])
     return c
-
-    '''
-    if agent.me.airborn:
-        mag = airt.magnitude()
-        if mag > 100:
-            yaw = math.atan2(airt[1],airt[0])
-            pitch = math.atan2(airt[2]*1.2,airt[0])
-            roll = math.atan2(airt[1],airt[2]*1.2)
-            c.yaw = steerPD(yaw, -agent.me.rvel[2]/4.5)
-            c.pitch = steerPD(pitch, agent.me.rvel[1]/4.5)
-            c.roll = steerPD(roll,agent.me.rvel[0])
-            
-            if abs(yaw) + abs(pitch) < 0.8:
-                c.boost = True
-            else:
-                c.boost = False
-            if agent.sinceJump < 0.15 and  airt[2] > 100:
-                c.jump = True
-                c.yaw = c.pitch = c.roll = 0
-            elif agent.sinceJump >= 0.15 and agent.sinceJump < 0.25:
-                c.jump = False
-            elif agent.sinceJump < 0.3 and airt[2] > 100:
-                c.jump = True
-                c.yaw = c.pitch = c.roll = 0
-            else:
-                c.jump = False
-        else:
-            local = agent.me.matrix.dot(target.location-agent.me.location)
-            yaw = math.atan2(airt[1],airt[0])
-            pitch = math.atan2(airt[2],airt[0])
-            c.yaw = steerPD(yaw, -agent.me.rvel[2]/4.5)
-            c.pitch = steerPD(pitch, agent.me.rvel[1]/4.5)
-            c.jump = False
-            c.boost = False
-        return c
-    '''
     
         
