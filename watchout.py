@@ -5,7 +5,6 @@ from rlbot.agents.base_agent import  SimpleControllerState
 from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics, Vector3 as vector3, Rotator
 
 from objects import *
-from states import *
 from routines import *
 
 class watchout(BaseAgent):
