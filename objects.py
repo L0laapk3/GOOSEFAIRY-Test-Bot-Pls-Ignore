@@ -1,14 +1,7 @@
 import math
-'''
-class Target:
-    def __init__(self,location,velocity):
-        self.location = location
-        self.velocity = velocity
-    def local(self,matrix):
-        return Target(matrix.dot(self))
-'''
+
 class carObject:
-    def __init__(self, index, car=None):
+    def __init__(self, index, game_cars = None):
         self.location = Vector3(0,0,0)
         self.velocity = Vector3(0,0,0)
         self.matrix = Matrix3([0,0,0])
@@ -17,37 +10,35 @@ class carObject:
         self.boost= 0
         self.airborne = False
         self.index = index
-        if car != None:
-            self.update(car)
+        if game_cars != None:
+            self.update(game_cars)
 
-    def update(self,packet):
-        self.location.data = [packet.physics.location.x,packet.physics.location.y,packet.physics.location.z]
-        self.velocity.data = [packet.physics.velocity.x,packet.physics.velocity.y,packet.physics.velocity.z]
-        self.matrix = Matrix3( [packet.physics.rotation.pitch,packet.physics.rotation.yaw,packet.physics.rotation.roll])
-        self.rvel.data = self.matrix.dot([packet.physics.angular_velocity.x,packet.physics.angular_velocity.y,packet.physics.angular_velocity.z])
-        self.team = packet.team
-        self.boost = packet.boost
-        self.airborne = not packet.has_wheel_contact
+    def update(self, game_cars):
+        car = game_cars[self.index]
+        self.location.data = [car.physics.location.x, car.physics.location.y, car.physics.location.z]
+        self.velocity.data = [car.physics.velocity.x, car.physics.velocity.y, car.physics.velocity.z]
+        self.matrix = Matrix3( [car.physics.rotation.pitch, car.physics.rotation.yaw, car.physics.rotation.roll])
+        self.rvel.data = self.matrix.dot([car.physics.angular_velocity.x, car.physics.angular_velocity.y, car.physics.angular_velocity.z])
+        self.team = car.team
+        self.boost = car.boost
+        self.airborne = not car.has_wheel_contact
 
 class ballObject:
     def __init__(self):
         self.location = Vector3(0,0,0)
         self.velocity = Vector3(0,0,0)
         
-    def update(self,packet):
-        self.location.data = [packet.physics.location.x,packet.physics.location.y,packet.physics.location.z]
-        self.velocity.data = [packet.physics.velocity.x,packet.physics.velocity.y,packet.physics.velocity.z]
+    def update(self,ball):
+        self.location.data = [ball.physics.location.x, ball.physics.location.y, ball.physics.location.z]
+        self.velocity.data = [ball.physics.velocity.x, ball.physics.velocity.y, ball.physics.velocity.z]
 
-class Line:
-    def __init__(self,start,end):
-        self.start = start
-        self.end = end
-        temp = end-start
-        self.length = temp.magnitude()
-        self.direction = temp.normalize()
-        self.events = []
-    def project_distance(self,vector):
-        return self.direction.dot(vector-self.start)
+class boostObject:
+    def __init__(self,index,location):
+        self.index = index
+        self.location = Vector3(location.x,location.y,location.z)
+        self.active = True
+    def update(self,game_boosts):
+        self.active = game_boosts[self.index].is_active
 
 class Matrix3:
     def __init__(self,r):
@@ -58,17 +49,10 @@ class Matrix3:
         CY = math.cos(r[1])
         SY = math.sin(r[1])        
         self.data = [Vector3(CP*CY, CP*SY, SP),Vector3(CY*SP*SR-CR*SY, SY*SP*SR+CR*CY, -CP * SR),Vector3(-CR*CY*SP-SR*SY, -CR*SY*SP+SR*CY, CP*CR)]
-
+    def __getitem__(self,key):
+        return self.data[key]
     def dot(self,vector):
         return Vector3(self.data[0].dot(vector),self.data[1].dot(vector),self.data[2].dot(vector))
-
-'''
-class Matrix2:
-    def __init__(self,theta):
-        self.data = [[math.cos(theta),-math.sin(theta)],[math.sin(theta), math.cos(theta)]]
-    def dot(self,vector):
-        return Vector3(self.data[0][0]*vector[0] + self.data[1][0]*vector[1], self.data[0][1]*vector[0] + self.data[1][1]*vector[1], 0)
-'''
 
 class Vector3:
     def __init__(self, *args):

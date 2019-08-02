@@ -1,43 +1,10 @@
-from objects import Vector3, Matrix3, Line
+from objects import Vector3, Matrix3
 import math
 
-BEST_180_SPEED = 1000
-
-def aerial(agent, target, time):
-    before = agent.c.jump
-    dv_target = backsolve(target,agent,time)
-    dv_total = dv_target.magnitude()
-    dv_local = agent.me.matrix.dot(dv_target)
-    angles = defaultPD(agent,dv_local)
-
-    precision = cap((dv_total/1500),0.05, 0.60)
-
-    if dv_local[2] > 100  or agent.me.airborne == False:
-        if agent.sinceJump < 0.3:
-            agent.c.jump = True
-        elif agent.sinceJump >= 0.32:
-            agent.c.jump = True
-            agent.c.pitch = agent.c.yaw = agent.c.roll = 0
-        else:
-            agent.c.jump = False
-    else:
-        agent.c.jump = False
-
-    if dv_total > 40:
-        if abs(angles[1])+abs(angles[2]) < precision:
-            agent.c.boost = True
-        else:
-            print(abs(angles[1])+abs(angles[2]), precision)
-            agent.c.boost = False
-    else:
-        fly_target = agent.me.matrix.dot(target - agent.me.location)
-        angles = defaultPD(agent,fly_target)
-        agent.c.boost = False
-    
+BEST_180_SPEED = 1000    
     
 def backsolve(target,agent,time):
     d = target-agent.me.location
-
     dx = (2* ((d[0]/time)-agent.me.velocity[0]))/time
     dy = (2* ((d[1]/time)-agent.me.velocity[1]))/time
     dz = (2 * ((325*time)+((d[2]/time)-agent.me.velocity[2])))/time
@@ -52,20 +19,22 @@ def cap(x, low, high):
         return x
 
 def defaultPD(agent, local, direction = 0):
-    turn = math.atan2(local[1],local[0])
-    turn = (math.pi * direction) + turn if direction != 0 else turn
-    up =  agent.me.matrix.dot(Vector3(0,0,agent.me.location[2]))
-    temp = [math.atan2(up[1],up[2]), math.atan2(local[2],local[0]), turn]
-    target = temp#retargetPD(agent.me.rvel, temp)
+    yaw = math.atan2(local[1],local[0])
+    turn = (math.pi * direction) + yaw if direction != 0 else yaw
+    up =  agent.me.matrix.dot(Vector3(0,0,1))
+    target = [math.atan2(up[1],up[2]), math.atan2(local[2],local[0]), turn]
     agent.c.steer = steerPD(turn, 0)
     agent.c.yaw = steerPD(target[2],-agent.me.rvel[2]/4)
     agent.c.pitch = steerPD(target[1],agent.me.rvel[1]/4)
     agent.c.roll = steerPD(target[0],agent.me.rvel[0]/2.5)
-    return temp
+    return target
 
-def retargetPD(rvel,target):
-    return Vector3([sign(target[x]) * (2*math.pi - abs(target[x])) if sign(rvel[x]) == sign(target[x]) and (2*math.pi - abs(target[x]))/cap(abs(rvel[x]),0.001,99) > (abs(target[x])*2/cap(abs(rvel[x]),0.001,99)) else target[x] for x in range(3)])
-    
+def defaultThrottle(agent,target_speed,direction=1):
+    agent_speed = agent.me.matrix.dot(agent.me.velocity)[0]
+    final = ((target_speed * direction) - agent_speed)
+    agent.c.throttle = cap(final*final*sign(final)/1000,-1.0,1.0)
+    agent.c.boost = True if (final > 150 and agent_speed < 2250 and agent.c.throttle >= 1.0) else False
+  
 def field(point,radius):
     point = Vector3(abs(point[0]),abs(point[1]),abs(point[2]))
     if point[0] > 3860 - radius:
@@ -77,24 +46,6 @@ def field(point,radius):
     elif point[0] > 2800 - radius and point[1] > -point[0] + 7750 - radius:
         return False
     return True
-
-def flip(agent,c,local):
-    #assumes controller will handle recovery
-    pitch = -sign(local[0])
-    if not agent.me.airborn:
-        c.jump = True
-        agent.sinceJump = 0
-    if agent.sinceJump <= 0.05:
-        c.jump = True
-        c.pitch = pitch
-    elif agent.sinceJump > 0.05 and agent.sinceJump <= 0.1:
-        c.jump = False
-        c.pitch = pitch
-    elif agent.sinceJump > 0.1 and agent.sinceJump <= 0.13:
-        c.jump = True
-        c.pitch = pitch
-        c.roll = 0
-        c.yaw = 0
 
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
@@ -115,24 +66,3 @@ def sign(x):
 def steerPD(angle,rate):
     final = ((35*(angle+rate))**3)/10
     return cap(final,-1,1)
-
-def defaultThrottle(agent,target_speed,agent_speed,direction=1):
-    final = abs(target_speed) - abs(agent_speed) * direction
-    if final >= 0.0:
-        agent.c.throttle = 1.0
-        if agent_speed < 2250:
-            agent.c.boost = True
-    elif final < -100.0:
-        agent.c.throttle = -1.0
-    else:
-        agent.c.throttle = 0.5
-
-def throttle(target_speed, agent_speed, direction = 1):
-    final = ((abs(target_speed) - abs(agent_speed))/100) * direction
-    if final > 1.5 or (final >0 and target_speed > 1410):
-        boost = True
-    else:
-        boost = False
-    if final > 0 and target_speed > 1410:
-        final = 1
-    return cap(final,-1,1),boost
