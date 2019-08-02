@@ -4,20 +4,20 @@ from util import *
 class routine:
     def __init__(self):
         pass
-    def execute(self,agent):
-        agent.states.pop()
+    def run(self,agent):
+        agent.stack.pop()
 
 class kickoff(routine):
     def __init__(self):
         self.jumped = False
-    def execute(self,agent):
+    def run(self,agent):
         main_target = agent.ball.location + ((agent.friend_goal-agent.ball.location).normalize()*150)
         relative = main_target-agent.me.location
         defaultPD(agent,agent.me.matrix.dot(relative))
         defaultThrottle(agent,2300)
         if relative.magnitude() < 600:
-            agent.states.pop()
-            agent.states.append(flip(agent.me.matrix.dot(agent.foe_goal-agent.me.location)))
+            agent.stack.pop()
+            agent.stack.append(flip(agent.me.matrix.dot(agent.foe_goal-agent.me.location)))
 
 class shot(routine):
     def __init__(self,target,vector,time,speed=0):
@@ -25,7 +25,7 @@ class shot(routine):
         self.vector = vector
         self.intercept_time = time
         self.speed = speed
-    def execute(self,agent):
+    def run(self,agent):
         time_remaining = cap(self.intercept_time-agent.time,0.001,20.0)
         distance_to_target = (self.target - agent.me.location).flatten().magnitude()            
         velocity_local = agent.me.matrix.dot(agent.me.velocity)
@@ -37,8 +37,8 @@ class shot(routine):
             angles = defaultPD(agent,local_drive_target)
             fly_target = backsolve(self.target,agent,time_remaining)
             if fly_target.magnitude() < 1000*time or abs(angles[2])<0.15:
-                agent.states.pop()
-                agent.states.append(aerial(self.target,self.intercept_time))
+                agent.stack.pop()
+                agent.stack.append(aerial(self.target,self.intercept_time))
         else:
             drive_target = self.target - (self.vector * (distance_to_target/2))
             local_drive_target = agent.me.matrix.dot(drive_target - agent.me.location)
@@ -51,7 +51,7 @@ class aerial(routine):
         self.intercept_time = time
         self.jump_time = time
         
-    def execute(self,agent):
+    def run(self,agent):
         time_remaining = self.intercept_time - agent.time
         dv_target = backsolve(self.target,agent,time_remaining)
         dv_total = dv_target.magnitude()
@@ -81,7 +81,7 @@ class aerial(routine):
             angles = defaultPD(agent,fly_target)
             agent.c.boost = False
         if time_remaining < -0.25:
-            agent.states.pop()
+            agent.stack.pop()
 
 class flip(routine): #dodges in the desired vector
     def __init__(self, vector):
@@ -93,7 +93,7 @@ class flip(routine): #dodges in the desired vector
             self.yaw = sign(vector[1])
         self.time = -1
   
-    def execute(self,agent):
+    def run(self,agent):
         if self.time == -1:
             elapsed = 0
             self.time = agent.time
@@ -101,7 +101,7 @@ class flip(routine): #dodges in the desired vector
             elapsed = agent.time-self.time
         if elapsed > 0.3 and not agent.me.airborne:
             agent.c.jump = False
-            agent.states.pop()
+            agent.stack.pop()
         elif elapsed < 0.1:
             agent.c.jump = True
         elif elapsed >=0.1 and elapsed < 0.16:
@@ -112,10 +112,10 @@ class flip(routine): #dodges in the desired vector
             agent.c.yaw = self.yaw
         else:
             agent.c.jump = False
-            agent.states.pop()
+            agent.stack.pop()
 
 class atba(routine):
-    def execute(self,agent):
+    def run(self,agent):
         defaultPD(agent, agent.me.matrix.dot(agent.ball.location-agent.me.location))
         defaultThrottle(agent,1000)
             

@@ -33,7 +33,7 @@ class watchout(BaseAgent):
         self.friend_goal = Vector3(0,5150*side(self.team),10)
         self.foe_goal = Vector3(0,5150*-side(self.team),10)
         
-        self.states = [atba()]
+        self.stack = [atba()]
         self.time = 0.0
         self.setup = True
         self.kickoff = False
@@ -48,7 +48,7 @@ class watchout(BaseAgent):
 
     def overwatch(self):
         if self.kickoff == True and self.made_kickoff_routine == False:
-            self.states.append(kickoff())
+            self.stack.append(kickoff())
             self.made_kickoff_routine = True
         elif self.kickoff == False and self.made_kickoff_routine == True:
             self.made_kickoff_routine = False
@@ -57,7 +57,7 @@ class watchout(BaseAgent):
         self.preprocess(packet)
         self.c.__init__()
         self.overwatch()
-        self.states[-1].execute(self)
+        self.stack[-1].run(self)
         return self.c
 
     def preprocess(self,packet):
