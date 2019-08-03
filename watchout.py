@@ -1,4 +1,5 @@
 import math
+import time
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.agents.base_agent import  SimpleControllerState
@@ -6,6 +7,7 @@ from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics,
 
 from objects import *
 from routines import *
+from graphics import *
 
 class watchout(BaseAgent):
     def initialize_agent(self):
@@ -38,6 +40,8 @@ class watchout(BaseAgent):
         self.kickoff = False
         self.made_kickoff_routine = False
 
+        self.gui = gui(self,True) #True to enable GUI
+
     def test(self):
         car = CarState(boost_amount=100, physics=Physics(velocity=vector3(0,0,0),angular_velocity=vector3(0,0,0),location=vector3(3000,3000,20),rotation=Rotator(0,1.5,0)))
         ball = BallState(physics=Physics(location=vector3(0,-side(self.team)*3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(0,0,3000)))
@@ -53,10 +57,14 @@ class watchout(BaseAgent):
             self.made_kickoff_routine = False
         
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
+        #now = time.clock()
         self.preprocess(packet)
         self.c.__init__()
         self.overwatch()
         self.stack[-1].run(self)
+        
+        self.gui.update(self)
+        #print(time.clock()-now)
         return self.c
 
     def preprocess(self,packet):
