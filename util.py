@@ -50,6 +50,43 @@ def field(point,radius):
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
 
+def shotConeRatio(agent,car,posts = True):
+    relative = agent.ball.location-car.location
+    if posts:
+        left_post = Vector3(800*-side(car.team),5150*side(car.team),320)
+        right_post = Vector3(800*side(car.team),5150*side(car.team),320)
+        shot_vector = (relative).clamp(left_post,right_post).normalize()
+    else:
+        shot_vector = (Vector3(0,5100*car.team,320)-agent.ball.location).normalize()
+    projection_distance = (relative).dot(shot_vector)
+    cross_vector = shot_vector.cross([0,0,1])
+    cross_distance = (relative).dot(cross_vector)
+    if cross_distance != 0.0:
+        return -projection_distance / abs(cross_distance)
+    else:
+        return -projection_distance
+
+def shotFinder(agent,max_time):
+    struct = agent.get_ball_prediction_struct()
+    
+    for i in range(18,struct.num_slices,18):
+        vector = None
+        """
+        project_dist = (agent.me.location - self.intercept).dot(self.vector)
+        dist_to_projection = ((project_dist*vector)-agent.me.location).magnitude()
+        self.align_ratio = dist_to_projection / projection_dist
+        """
+
+def defaultPosession(agent,car):
+    relative = agent.ball.location-car.location
+    vector,distance = relative.normalize(True)
+    velocity = vector.dot(car.velocity)
+    ball_kinetic = -agent.ball.velocity.dot(vector)/4
+    car_kinetic = cap(velocity,abs(velocity)/2, 2300)/2
+    potential = car.boost * 10
+    total = ball_kinetic + potential + car_kinetic
+    return int(total - (distance))
+
 def side(x):
     if x <= 0:
         return -1

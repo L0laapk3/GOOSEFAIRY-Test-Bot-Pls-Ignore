@@ -40,6 +40,12 @@ class boostObject:
     def update(self,game_boosts):
         self.active = game_boosts[self.index].is_active
 
+class shotObject:
+    def __init__(self,agent, intercept,vector,time):
+        self.intercept = intercept
+        self.vector = vector
+        self.time = time
+
 class Matrix3:
     def __init__(self,r):
         CR = math.cos(r[2])
@@ -53,6 +59,40 @@ class Matrix3:
         return self.data[key]
     def dot(self,vector):
         return Vector3(self.data[0].dot(vector),self.data[1].dot(vector),self.data[2].dot(vector))
+
+class lineRequest:
+    def __init__(self,start,end,color):
+        self.start = start
+        self.end = end
+        self.color = color
+    def render(self,agent,enable):
+        agent.renderer.draw_line_3d(self.start,self.end,self.color)
+        if enable:
+            agent.gui.draw_line(self,start,self.end,self.color)
+        
+class rectRequest:
+    def __init__(self,location,width,height,fill,color,center=True):
+        self.location = location
+        self.width = width
+        self.height = height
+        self.fill = fill
+        self.center = center
+        self.color = color
+    def render(self,agent,enable):
+        if self.center:
+            location = self.location - Vector3(self.width/2,self.height/2,0)
+        else:
+            location = self.location
+        agent.renderer.draw_rect_3d(location,self.width,self.height,self.fill,self.color)
+        
+class stringRequest:
+    def __init__(self,location,scale,text,color):
+        self.location = location
+        self.scale = scale
+        self.text = text
+        self.color = color
+    def render(self,agent,enable):
+        agent.renderer.draw_string_2d(self.location[0],self.location[1],self.scale[0],self.scale[1],self.text,self.color)
 
 class Vector3:
     def __init__(self, *args):
@@ -72,12 +112,18 @@ class Vector3:
         return Vector3(self[0]/value, self[1]/value, self[2]/value)
     def magnitude(self):
         return math.sqrt((self[0]*self[0]) + (self[1] * self[1]) + (self[2]* self[2]))
-    def normalize(self):
+    def normalize(self,returnMag=False):
         mag = self.magnitude()
         if mag != 0:
-            return Vector3(self[0]/mag, self[1]/mag, self[2]/mag)
+            if returnMag:
+                return Vector3(self[0]/mag, self[1]/mag, self[2]/mag),mag
+            else:
+                return Vector3(self[0]/mag, self[1]/mag, self[2]/mag)
         else:
-            return Vector3(0,0,0)
+            if returnMag:
+                return Vector3(0,0,0),0
+            else:
+                return Vector3(0,0,0)
     def dot(self,value):
         return self[0]*value[0] + self[1]*value[1] + self[2]*value[2]
     def cross(self,value):
@@ -91,8 +137,8 @@ class Vector3:
     def angle(self,value):
         return math.acos(self.dot(value))
     def clamp(self,start,end):
-        if self.sign(start) >= 0:
-            if self.sign(end) <= 0 :
+        if self.side(start) >= 0:
+            if self.side(end) <= 0 :
                 return self
             else:
                 return end

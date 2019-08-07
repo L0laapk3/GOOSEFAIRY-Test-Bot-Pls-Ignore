@@ -5,6 +5,7 @@ import math
 
 class gui:
     def __init__(self,agent,enabled):
+        self.render_queue = []
         self.enabled = enabled
         self.white = (255,255,255)
         self.black = (0,0,0)
@@ -86,6 +87,16 @@ class gui:
         point = (point * (1/64)) * self.average
         point = [int(-point[1]+self.field_center[0]+1),int(point[0]+self.field_center[1]-5)]
         return point
+    def convert_color(self,color):
+        return (color[1],color[2],color[3],color[0])
+    
+    def handle_queue(self,agent):
+        agent.renderer.begin_rendering("a")
+        for item in self.render_queue:
+            item.render(agent,self.enabled)
+        self.render_queue = []
+        agent.renderer.end_rendering()
+        
         
     def update(self,agent):
         if self.enabled:
@@ -101,25 +112,20 @@ class gui:
             else:
                 self.window.fill(self.white)
                 self.render_field(agent)
-                '''
-                self.render(self.field,(0,0))
-                self.render(self.small_boost,(10,100))
-                self.render(self.large_boost,(50,100))
-                self.render(self.large_blue,(100,100))
-                self.render(self.large_orange,(150,100))
-                self.render(self.medium_blue,(200,100))
-                self.render(self.medium_orange,(250,100))
-                self.render(self.large_ball,(300,100))
-                self.render(self.small_ball,(350,100))
-                '''
+                self.handle_queue(agent)
                 pygame.display.flip()
-                #pygame.display.update()
+        else:
+            self.handle_queue(agent)
                 
                 
-            
+    def line(self,start,end,color):
+        self.render_queue.append(lineRequest(start,end,color))
+    def draw_line(self,start,end,color):
+        width = int(self.average/2)
+        pygame.draw.line(self.window,self.convert_color(color),self.convert(start),self.convert(end),width)
         
-        
-            
-            
-            
-        
+    def rect(self,location,width,height,fill,color,center):
+        self.render_queue.append(rectRequest(location,width,height,fill,color,center))
+    def text(self,location,scale,text,color):
+        self.render_queue.append(stringRequest(location,scale,text,color))
+     

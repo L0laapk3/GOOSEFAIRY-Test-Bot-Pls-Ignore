@@ -49,21 +49,38 @@ class watchout(BaseAgent):
         self.set_game_state(game)
         self.state = vector_shot_test()
 
-    def overwatch(self):
+    def watchdog(self):
         if self.kickoff == True and self.made_kickoff_routine == False:
             self.stack.append(kickoff())
             self.made_kickoff_routine = True
         elif self.kickoff == False and self.made_kickoff_routine == True:
             self.made_kickoff_routine = False
+
+        #decision tree for 1v1
+        if len(self.stack) < 1:
+            pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
+            if pos > 1000:
+                pass
+            elif pos < -1000:
+                pass
+            else:
+                if (agent.me.location-agent.ball.location).magnitude() < 1000:
+                    pass #upfield
+                else:
+                    pass
+                    
+            
+            
+            
         
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         #now = time.clock()
         self.preprocess(packet)
         self.c.__init__()
-        self.overwatch()
-        self.stack[-1].run(self)
-        
+        self.watchdog()
+        self.stack[-1].run(self)        
         self.gui.update(self)
+        print(shotConeRatio(self,self.foes[0]))
         #print(time.clock()-now)
         return self.c
 
