@@ -117,6 +117,6 @@ class flip(routine): #dodges in the desired vector
 class atba(routine):
     def run(self,agent):
         defaultPD(agent, agent.me.matrix.dot(agent.ball.location-agent.me.location))
-        defaultThrottle(agent,1000)
+        defaultThrottle(agent,10)
             
         

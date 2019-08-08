@@ -12,6 +12,7 @@ class gui:
         self.average = 3.0
         self.resolution = [220*3,140*3]
         self.field_center = [self.resolution[0]//2,self.resolution[1]//2]
+        self.renderer = agent.renderer #only used for color atm
         if self.enabled:
             global pygame
             import pygame
@@ -61,7 +62,6 @@ class gui:
             surface = pygame.transform.rotate(self.medium_blue,rotation)
         self.render(surface,self.convert(car.location),True)
         
-        
     def render_field(self,agent):
         self.render(self.field,self.field_center,True)
         for boost in agent.large_boosts:
@@ -97,7 +97,6 @@ class gui:
         self.render_queue = []
         agent.renderer.end_rendering()
         
-        
     def update(self,agent):
         if self.enabled:
             shutdown = False
@@ -116,12 +115,11 @@ class gui:
                 pygame.display.flip()
         else:
             self.handle_queue(agent)
-                
-                
+                       
     def line(self,start,end,color):
         self.render_queue.append(lineRequest(start,end,color))
     def draw_line(self,start,end,color):
-        width = int(self.average/2)
+        width = int(self.average)-1
         pygame.draw.line(self.window,self.convert_color(color),self.convert(start),self.convert(end),width)
         
     def rect(self,location,width,height,fill,color,center):

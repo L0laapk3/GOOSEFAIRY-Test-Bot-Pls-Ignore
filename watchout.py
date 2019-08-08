@@ -60,27 +60,31 @@ class watchout(BaseAgent):
         if len(self.stack) < 1:
             pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
             if pos > 1000:
+                #if we have posession
                 pass
             elif pos < -1000:
+                #elif we don't have posession
                 pass
             else:
+                #posession is mixed/unsure
                 if (agent.me.location-agent.ball.location).magnitude() < 1000:
+                    #if we're close
                     pass #upfield
+                elif shotConeRatio(agent,agent.foes[0]) <= -0.45:
+                    #elif we're not close and the opponent could take a shot
+                    pass#defend
                 else:
-                    pass
-                    
-            
-            
-            
-        
+                    #we're not close but the opponent doesn't have a shot
+                    pass#shot
+
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         #now = time.clock()
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
-        self.stack[-1].run(self)        
+        self.stack[-1].run(self)
+        x = shotConeRatio(self,self.foes[0])
         self.gui.update(self)
-        print(shotConeRatio(self,self.foes[0]))
         #print(time.clock()-now)
         return self.c
 

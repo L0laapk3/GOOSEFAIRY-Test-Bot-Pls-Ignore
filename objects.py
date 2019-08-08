@@ -66,9 +66,9 @@ class lineRequest:
         self.end = end
         self.color = color
     def render(self,agent,enable):
-        agent.renderer.draw_line_3d(self.start,self.end,self.color)
+        agent.renderer.draw_line_3d(self.start,self.end,agent.renderer.create_color(*self.color))
         if enable:
-            agent.gui.draw_line(self,start,self.end,self.color)
+            agent.gui.draw_line(self.start,self.end,self.color)
         
 class rectRequest:
     def __init__(self,location,width,height,fill,color,center=True):
