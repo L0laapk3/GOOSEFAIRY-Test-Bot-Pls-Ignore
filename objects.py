@@ -44,7 +44,9 @@ class shotObject:
     def __init__(self,agent, intercept,vector,time):
         self.intercept = intercept
         self.vector = vector
-        self.time = time
+        self.intercept_time = time
+    def render(self,agent):
+        agent.gui.rect(self.intercept,)
 
 class Matrix3:
     def __init__(self,r):
@@ -80,11 +82,16 @@ class rectRequest:
         self.color = color
     def render(self,agent,enable):
         if self.center:
-            location = self.location - Vector3(self.width/2,self.height/2,0)
+            location = self.location - Vector3(self.width,self.height,0)
         else:
             location = self.location
-        agent.renderer.draw_rect_3d(location,self.width,self.height,self.fill,self.color)
-        
+        agent.renderer.draw_rect_3d(location,self.width,self.height,self.fill,agent.renderer.create_color(*self.color))
+        if enable:
+            if self.center:
+                agent.gui.draw_rect(location,self.width,self.height,self.fill,self.color)
+            else:
+                agent.gui.draw_rect(location,self.width,self.height,self.fill,self.color)
+     
 class stringRequest:
     def __init__(self,location,scale,text,color):
         self.location = location

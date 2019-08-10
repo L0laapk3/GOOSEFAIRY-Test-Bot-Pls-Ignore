@@ -115,15 +115,24 @@ class gui:
                 pygame.display.flip()
         else:
             self.handle_queue(agent)
-                       
+    def star(self,location,color):
+        x = Vector3(150,0,0)
+        y = Vector3(0,150,0)
+        z = Vector3(0,0,150)
+        self.line(location-x,location+x,color)
+        self.line(location-y,location+y,color)
+        self.line(location-z,location+z,color)
+        
     def line(self,start,end,color):
         self.render_queue.append(lineRequest(start,end,color))
     def draw_line(self,start,end,color):
         width = int(self.average)-1
         pygame.draw.line(self.window,self.convert_color(color),self.convert(start),self.convert(end),width)
-        
     def rect(self,location,width,height,fill,color,center):
         self.render_queue.append(rectRequest(location,width,height,fill,color,center))
+    def draw_rect(self,location,w,h,fill,color):
+        width = 0 if fill else int(self.average)-1
+        pygame.draw.rect(self.window,self.convert_color(color),(*self.convert(location),w,h),width)
     def text(self,location,scale,text,color):
         self.render_queue.append(stringRequest(location,scale,text,color))
      

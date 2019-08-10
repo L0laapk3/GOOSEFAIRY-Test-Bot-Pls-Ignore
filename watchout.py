@@ -57,8 +57,12 @@ class watchout(BaseAgent):
             self.made_kickoff_routine = False
 
         #decision tree for 1v1
-        if len(self.stack) < 1:
-            pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
+        if len(self.stack) < 2:
+            #pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
+            shots = shotFinder(self)
+            
+            '''
+            #"old" decision model
             if pos > 1000:
                 #if we have posession
                 pass
@@ -70,12 +74,13 @@ class watchout(BaseAgent):
                 if (agent.me.location-agent.ball.location).magnitude() < 1000:
                     #if we're close
                     pass #upfield
-                elif shotConeRatio(agent,agent.foes[0]) <= -0.45:
+                elif shotConeRatio(agent,agent.foes[0],agent.ball.location) <= -0.45:
                     #elif we're not close and the opponent could take a shot
                     pass#defend
                 else:
                     #we're not close but the opponent doesn't have a shot
                     pass#shot
+            '''
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         #now = time.clock()
@@ -83,7 +88,6 @@ class watchout(BaseAgent):
         self.c.__init__()
         self.watchdog()
         self.stack[-1].run(self)
-        x = shotConeRatio(self,self.foes[0])
         self.gui.update(self)
         #print(time.clock()-now)
         return self.c

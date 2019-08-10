@@ -50,36 +50,45 @@ def field(point,radius):
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
 
-def shotConeRatio(agent,car,posts = True):
+def bestShotVector(car,ball_location):
+    relative = (ball_location-car.location)
+    left_post_vector = Vector3(750*-side(car.team),5150*-side(car.team),100)-ball_location
+    right_post_vector = Vector3(750*side(car.team),5150*-side(car.team),100)-ball_location
+    return (relative).clamp(left_post_vector,right_post_vector).normalize()
+
+def shotConeRatio(agent,car,ball_location,posts = True):
     #returns a number between -10.0 and 10.0
     #-10.0 means you are in the center of your shot cone
     #--0.5 is still dangerous, but anything higher means you're too off-sides to take a shot
-    relative = (agent.ball.location-car.location)
+    relative = (ball_location-car.location)
     if posts:
-        left_post = Vector3(750*-side(car.team),5150*-side(car.team),100)
-        left_post_vector = left_post-agent.ball.location
-        right_post = Vector3(750*side(car.team),5150*-side(car.team),100)
-        right_post_vector = right_post-agent.ball.location
-        shot_vector = (relative).clamp(left_post_vector,right_post_vector).normalize()
+        bestShotVector(car,ball_location)
     else:
-        shot_vector = (Vector3(0,5100*car.team,100)-agent.ball.location).normalize()
+        shot_vector = (Vector3(0,5100*car.team,100)-ball_location).normalize()
     projection_distance = (relative).dot(shot_vector)
     cross_vector = shot_vector.cross([0,0,1])
     cross_distance = (relative).dot(cross_vector)
     #rendering the lines involved
-    agent.gui.line(agent.ball.location,left_post,(255,235,175,0))
-    agent.gui.line(agent.ball.location,right_post,(255,0,175,235))
-    agent.gui.line(agent.ball.location, agent.ball.location + (shot_vector*2000),(255,255,0,255))
+    agent.gui.line(ball_location,left_post,(255,235,175,0))
+    agent.gui.line(ball_location,right_post,(255,0,175,235))
+    agent.gui.line(ball_location, ball_location + (shot_vector*2000),(255,255,0,255))
     if cross_distance != 0.0:
         return cap(-projection_distance / abs(cross_distance),-10.0,10.0)
     else:
         return cap(-projection_distance,-10.0,10.0)
 
-def shotFinder(agent,max_time):
+def shotFinder(agent):
     struct = agent.get_ball_prediction_struct()
-    
     for i in range(18,struct.num_slices,18):
-        vector = None
+        intercept_time = struct.slices[i].game_seconds
+        time_remaining = intercept_time - agent.time
+        temp = struct.slices[i].physics.location
+        ball = Vector3(temp.x,temp.y,temp.z)
+
+        upfield_vector = Vector3(0,1.0*-side(agent.team),0)
+        shot_vector = bestShotVector(agent.me,ball)
+                
+
         """
         project_dist = (agent.me.location - self.intercept).dot(self.vector)
         dist_to_projection = ((project_dist*vector)-agent.me.location).magnitude()

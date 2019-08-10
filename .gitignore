@@ -1,3 +1,6 @@
 
 *.pyc
 *.pyc
+__pycache__/watchout.cpython-37.pyc
+__pycache__/objects.cpython-37.pyc
+__pycache__/util.cpython-37.pyc
