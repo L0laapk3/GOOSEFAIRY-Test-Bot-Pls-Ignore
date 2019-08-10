@@ -41,12 +41,16 @@ class boostObject:
         self.active = game_boosts[self.index].is_active
 
 class shotObject:
-    def __init__(self,agent, intercept,vector,time):
+    def __init__(self,intercept,vector,time,upfield=False):
+        self.upfield = upfield
         self.intercept = intercept
         self.vector = vector
         self.intercept_time = time
     def render(self,agent):
-        agent.gui.rect(self.intercept,)
+        agent.gui.star(self.intercept,(255,255,255,255))
+        color = (255,255,0,0) if self.upfield else (255,255,0,255)
+        if not self.upfield:
+            agent.gui.line(self.intercept-(self.vector*1000),self.intercept+(self.vector*1000),color)
 
 class Matrix3:
     def __init__(self,r):

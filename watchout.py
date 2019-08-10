@@ -60,6 +60,8 @@ class watchout(BaseAgent):
         if len(self.stack) < 2:
             #pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
             shots = shotFinder(self)
+            for shot in shots:
+                shot.render(self)
             
             '''
             #"old" decision model
