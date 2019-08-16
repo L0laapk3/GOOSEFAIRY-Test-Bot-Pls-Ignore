@@ -8,6 +8,7 @@ from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics,
 from objects import *
 from routines import *
 from graphics import *
+from strategy import *
 
 class watchout(BaseAgent):
     def initialize_agent(self):
@@ -36,7 +37,7 @@ class watchout(BaseAgent):
         
         self.stack = [atba()]
         self.time = 0.0
-        self.setup = True
+        self.need_setup = True
         self.kickoff = False
         self.made_kickoff_routine = False
 
@@ -63,26 +64,6 @@ class watchout(BaseAgent):
             for shot in shots:
                 shot.render(self)
             
-            '''
-            #"old" decision model
-            if pos > 1000:
-                #if we have posession
-                pass
-            elif pos < -1000:
-                #elif we don't have posession
-                pass
-            else:
-                #posession is mixed/unsure
-                if (agent.me.location-agent.ball.location).magnitude() < 1000:
-                    #if we're close
-                    pass #upfield
-                elif shotConeRatio(agent,agent.foes[0],agent.ball.location) <= -0.45:
-                    #elif we're not close and the opponent could take a shot
-                    pass#defend
-                else:
-                    #we're not close but the opponent doesn't have a shot
-                    pass#shot
-            '''
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         #now = time.clock()
@@ -106,11 +87,11 @@ class watchout(BaseAgent):
 
         self.kickoff = packet.game_info.is_round_active and packet.game_info.is_kickoff_pause
 
-        if self.setup:
+        if self.need_setup:
             for i in range(packet.num_cars):
                 if i != self.index:
                     if packet.game_cars[i].team == self.team:
                         self.friends.append(carObject(i,packet.game_cars))
                     else:
                         self.foes.append(carObject(i,packet.game_cars))
-            self.setup = False
+            self.need_setup = False

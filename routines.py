@@ -1,5 +1,5 @@
-from objects import Vector3
 from util import *
+from objects import Vector3
 
 class routine:
     def __init__(self):
