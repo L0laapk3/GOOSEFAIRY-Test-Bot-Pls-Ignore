@@ -23,7 +23,7 @@ class watchout(BaseAgent):
         self.large_boosts = []
         for i in range(field_info.num_boosts):
             boost = field_info.boost_pads[i]
-            temp = boostObject(i,boost.location)
+            temp = boostObject(i,boost.location,boost.is_full_boost)
             self.all_boosts.append(temp)
             if boost.is_full_boost:
                 self.large_boosts.append(temp)
@@ -59,6 +59,9 @@ class watchout(BaseAgent):
 
         #decision tree for 1v1
         if len(self.stack) < 2:
+            if self.foes[0].location[2] > 350:
+                center = Vector3(0,0,0)
+                self.stack.append(handbrakeTurn(center,(self.foe_goal-center).normalize()))
             #pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
             shots = shotFinder(self)
             for shot in shots:

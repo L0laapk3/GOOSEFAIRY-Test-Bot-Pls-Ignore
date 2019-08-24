@@ -7,17 +7,81 @@ class routine:
     def run(self,agent):
         agent.stack.pop()
 
+class simpleBoost(routine):
+    def __init__(self,boost):
+        self.boost = boost
+    def run(self,agent):
+        relative = self.boost.location - agent.me.location
+        distance = (relative).magnitude()
+        local = agent.me.matrix.dot(relative)
+        angles = defaultPD(agent, local)
+        speed = defaultThrottle(agent,2300)
+        if speed > 700 and not agent.me.airborne and distance / speed > 2.5 and abs(angles[2]) <= 0.10:
+            agent.stack.append(flip(local))
+        if not self.boost.is_large or agent.me.airborne:
+            agent.c.boost = False
+        if not self.boost.active:
+            agent.stack.pop()
+
 class kickoff(routine):
     def __init__(self):
         self.jumped = False
+        self.step = 0
     def run(self,agent):
-        main_target = agent.ball.location + ((agent.friend_goal-agent.ball.location).normalize()*150)
-        relative = main_target-agent.me.location
-        defaultPD(agent,agent.me.matrix.dot(relative))
-        defaultThrottle(agent,2300)
-        if relative.magnitude() < 600:
-            agent.stack.pop()
-            agent.stack.append(flip(agent.me.matrix.dot(agent.foe_goal-agent.me.location)))
+        if self.step == 0:
+            main_target = agent.ball.location + ((agent.friend_goal-agent.ball.location).normalize()*150)
+            relative = main_target-agent.me.location
+            defaultPD(agent,agent.me.matrix.dot(relative))
+            defaultThrottle(agent,2300)
+            if relative.magnitude() < 600:
+                self.step = 1
+                agent.stack.append(flip(agent.me.matrix.dot(agent.foe_goal-agent.me.location)))
+        else:
+            if not agent.me.airborne:
+                ball_future = agent.ball.location + (3 * agent.ball.velocity.flatten())
+                my_cone = shotConeRatio(agent.me,ball_future)
+                foe_cone = shotConeRatio(agent.foes[0],ball_future)
+                if my_cone < -0.5:
+                    #shot
+                    pass
+                elif foe_cone < -0.5:
+                    #clear
+                    pass
+                else:
+                    boosts = [x for x in agent.large_boosts if abs(x.location[1])+300>abs(agent.ball.location[1]) and x.active == True]
+                    closest = boosts[0]
+                    distance = (agent.me.location - closest.location).magnitude()
+                    for i in range(1,len(boosts)):
+                        temp = (boosts[i].location-agent.me.location).magnitude()
+                        if temp < distance:
+                            closest = boosts[i]
+                            distance = temp
+                    agent.stack.pop()
+                    agent.stack.append(simpleBoost(closest))
+                    
+                    pass
+                agent.stack.pop()
+            else:
+                defaultPD(agent,agent.me.matrix.dot(agent.ball.location-agent.me.location))
+        
+class defend(routine):
+    def __init__(self):
+        self.step = 0
+    def run(self,agent):
+        relative = agent.ball.location-agent.friend_goal
+        goal_to_ball = relative.normalize()
+        distance = relative.magnitude()
+        if self.step == 0:
+            if distance > 1200:
+                agent.stack.append(handbrakeTurn(agent.friend_goal,goal_to_ball))
+            self.step = 1
+        elif self.step == 1:
+            projection_distance = (agent.me.location-agent.friend_goal).dot(goal_to_ball)
+            target = agent.friend_goal + (goal_to_ball*(projection_distance/1.2))
+                
+        
+        
+        
 
 class shot(routine):
     def __init__(self,target,vector,time,speed=0):
@@ -113,6 +177,32 @@ class flip(routine): #dodges in the desired vector
         else:
             agent.c.jump = False
             agent.stack.pop()
+
+class handbrakeTurn(routine):
+    def __init__(self,target,vector):
+        #drive towards the target and handbrake turn to face a direction
+        self.target = target.flatten()
+        self.vector = vector
+        self.step = 0
+    def run(self,agent):
+        relative = self.target-agent.me.location.flatten()
+        distance = (relative).magnitude()
+        vector = relative.normalize()
+        relative_velocity = vector.dot(agent.me.velocity)
+        angle = abs(defaultPD(agent,agent.me.matrix.dot(self.vector))[2])
+        turn_time = (angle/3.14)
+        
+        if turn_time > distance / cap(relative_velocity,50,2300) or self.step == 1 or distance < 200:
+            self.step = 1
+            defaultPD(agent,agent.me.matrix.dot(self.target+(self.vector*5000)-agent.me.location))
+            agent.c.handbrake = True
+            agent.c.throttle = 1.0
+            if angle < 0.5:
+                agent.stack.pop()
+        else:
+            defaultPD(agent,agent.me.matrix.dot(relative))
+            defaultThrottle(agent,2300)
+            agent.c.boost = False
 
 class atba(routine):
     def run(self,agent):

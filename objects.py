@@ -33,10 +33,11 @@ class ballObject:
         self.velocity.data = [ball.physics.velocity.x, ball.physics.velocity.y, ball.physics.velocity.z]
 
 class boostObject:
-    def __init__(self,index,location):
+    def __init__(self,index,location,is_large):
         self.index = index
         self.location = Vector3(location.x,location.y,location.z)
         self.active = True
+        self.is_large = is_large
     def update(self,game_boosts):
         self.active = game_boosts[self.index].is_active
 
