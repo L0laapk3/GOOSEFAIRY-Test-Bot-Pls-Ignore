@@ -48,7 +48,6 @@ class watchout(BaseAgent):
         ball = BallState(physics=Physics(location=vector3(0,-side(self.team)*3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(0,0,3000)))
         game = GameState(ball=ball, cars = {self.index: car})
         self.set_game_state(game)
-        self.state = vector_shot_test()
 
     def watchdog(self):
         if self.kickoff == True and self.made_kickoff_routine == False:
@@ -59,13 +58,11 @@ class watchout(BaseAgent):
 
         #decision tree for 1v1
         if len(self.stack) < 2:
-            if self.foes[0].location[2] > 350:
-                center = Vector3(0,0,0)
-                self.stack.append(handbrakeTurn(center,(self.foe_goal-center).normalize()))
             #pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
             shots = shotFinder(self)
-            for shot in shots:
-                shot.render(self)
+            self.stack.append(shot(shotFilter(shots,"soonest")))
+            for item in shots:
+                item.render(self)
             
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:

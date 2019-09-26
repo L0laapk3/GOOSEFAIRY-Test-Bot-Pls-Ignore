@@ -42,11 +42,12 @@ class boostObject:
         self.active = game_boosts[self.index].is_active
 
 class shotObject:
-    def __init__(self,intercept,vector,time,upfield=False):
+    def __init__(self,intercept,vector,time,ratio,upfield=False):
         self.upfield = upfield
         self.intercept = intercept
         self.vector = vector
         self.intercept_time = time
+        self.ratio = ratio
     def render(self,agent):
         agent.gui.star(self.intercept,(255,255,255,255))
         color = (255,255,0,0) if self.upfield else (255,255,0,255)
@@ -147,7 +148,7 @@ class Vector3:
     def copy(self):
         return Vector3(self.data[:])
     def angle(self,value):
-        return math.acos(self.dot(value))
+        return math.acos(self.normalize().dot(value.normalize()))
     def clamp(self,start,end):
         if self.side(start) >= 0:
             if self.side(end) <= 0 :

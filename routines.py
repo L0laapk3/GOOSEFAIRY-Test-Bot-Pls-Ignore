@@ -41,14 +41,18 @@ class kickoff(routine):
                 ball_future = agent.ball.location + (3 * agent.ball.velocity.flatten())
                 my_cone = shotConeRatio(agent.me,ball_future)
                 foe_cone = shotConeRatio(agent.foes[0],ball_future)
+                print(my_cone,foe_cone)
                 if my_cone < -0.5:
-                    #shot
+                    agent.stack.pop()
+                    agent.stack.append(shot(shotFilter(shotFinder(agent),"soonest")))
                     pass
                 elif foe_cone < -0.5:
                     #clear
+                    agent.stack.pop()
+                    agent.stack.append(shot(shotFilter(shotFinder(agent,True),"soonest")))
                     pass
                 else:
-                    boosts = [x for x in agent.large_boosts if abs(x.location[1])+300>abs(agent.ball.location[1]) and x.active == True]
+                    boosts = [x for x in agent.large_boosts if abs(x.location[1]-agent.friend_goal[1])<abs(agent.ball.location[1]-agent.friend_goal[1]) and x.active == True]
                     closest = boosts[0]
                     distance = (agent.me.location - closest.location).magnitude()
                     for i in range(1,len(boosts)):
@@ -57,10 +61,8 @@ class kickoff(routine):
                             closest = boosts[i]
                             distance = temp
                     agent.stack.pop()
+                    agent.stack.append(handbrakeTurn(agent.friend_goal, (agent.ball.location - agent.friend_goal).normalize()))
                     agent.stack.append(simpleBoost(closest))
-                    
-                    pass
-                agent.stack.pop()
             else:
                 defaultPD(agent,agent.me.matrix.dot(agent.ball.location-agent.me.location))
         
@@ -79,15 +81,11 @@ class defend(routine):
             projection_distance = (agent.me.location-agent.friend_goal).dot(goal_to_ball)
             target = agent.friend_goal + (goal_to_ball*(projection_distance/1.2))
                 
-        
-        
-        
-
 class shot(routine):
-    def __init__(self,target,vector,time,speed=0):
-        self.target = target
-        self.vector = vector
-        self.intercept_time = time
+    def __init__(self,s,speed=0):
+        self.target = s.intercept
+        self.vector = s.vector
+        self.intercept_time = s.intercept_time
         self.speed = speed
     def run(self,agent):
         time_remaining = cap(self.intercept_time-agent.time,0.001,20.0)
@@ -100,7 +98,7 @@ class shot(routine):
             local_drive_target = agent.me.matrix.dot(self.target-agent.me.location)
             angles = defaultPD(agent,local_drive_target)
             fly_target = backsolve(self.target,agent,time_remaining)
-            if fly_target.magnitude() < 1000*time or abs(angles[2])<0.15:
+            if fly_target.magnitude() < 1000*time_remaining or abs(angles[2])<0.15:
                 agent.stack.pop()
                 agent.stack.append(aerial(self.target,self.intercept_time))
         else:
@@ -114,6 +112,7 @@ class aerial(routine):
         self.target = target
         self.intercept_time = time
         self.jump_time = time
+        self.double = False
         
     def run(self,agent):
         time_remaining = self.intercept_time - agent.time
@@ -129,8 +128,9 @@ class aerial(routine):
         elapsed = agent.time - self.jump_time
         if elapsed <= 0.3:
             agent.c.jump = True 
-        elif elapsed >= 0.32 and dv_local[2] > 500:
+        elif elapsed >= 0.32 and dv_local[2] > 600:
             agent.c.jump = True
+            self.double = True
             agent.c.pitch = agent.c.yaw = agent.c.roll = 0
         else:
             agent.c.jump = False
@@ -146,6 +146,9 @@ class aerial(routine):
             agent.c.boost = False
         if time_remaining < -0.25:
             agent.stack.pop()
+        elif time_remaining < 0.5 and self.double == False:
+            agent.stack.pop()
+            agent.stack.append(flip(dv_local))
 
 class flip(routine): #dodges in the desired vector
     def __init__(self, vector):

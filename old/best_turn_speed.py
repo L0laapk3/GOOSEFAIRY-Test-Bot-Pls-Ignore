@@ -12,14 +12,17 @@ fig,ax = plt.subplots()
 
 x=[]
 y=[]
-
-for v in range(100,2300):
+total = 0
+counter = 0
+for v in range(350,2300):
     r = radius(v)
     d = distance(r)
     time = d/v
+    total += time
+    counter += 1
     x.append(v)
     y.append(time)
-
+print(total / counter)
 ax.plot(x,y)
 ax.set(xlabel="velocity",ylabel="time",title="time to complete a 180 degree turn")
 plt.show()

@@ -89,7 +89,7 @@ def field(point,radius):
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
 
-def shotFinder(agent):
+def shotFinder(agent,up=False):
     shots = []
     struct = agent.get_ball_prediction_struct()
     for i in range(18,struct.num_slices,18):
@@ -97,17 +97,30 @@ def shotFinder(agent):
         time_remaining = intercept_time - agent.time
         temp = struct.slices[i].physics.location
         ball = Vector3(temp.x,temp.y,temp.z)
-        if (ball-agent.me.location).magnitude() / time_remaining < 2250:        
-            ratio = shotConeRatio(agent.me,ball,True)
-            if ratio < -0.1:
-                upfield_vector = Vector3(0,1.0*-side(agent.team),0)
-                intercept = ball - (93*upfield_vector)
-                shots.append(shotObject(intercept,upfield_vector,intercept_time,True))
-            if ratio < -0.5:
-                shot_vector = bestShotVector(agent.me,ball)
-                intercept = ball - (93*shot_vector)
-                shots.append(shotObject(intercept,shot_vector,intercept_time,False))
+        car_to_ball = (agent.ball.location - agent.me.location).flatten()
+        angle = car_to_ball.angle(agent.me.matrix[0])
+        time_remaining -= angle*0.446
+        if time_remaining > 0.0:
+            if (ball-agent.me.location).magnitude() / time_remaining < 2250:        
+                ratio = shotConeRatio(agent.me,ball,True)
+                if up and ratio < -0.1:
+                    upfield_vector = Vector3(0,1.0*-side(agent.team),0)
+                    intercept = ball - (93*upfield_vector)
+                    shots.append(shotObject(intercept,upfield_vector,intercept_time,True))
+                if ratio < -0.5:
+                    shot_vector = bestShotVector(agent.me,ball)
+                    intercept = ball - (93*shot_vector)
+                    shots.append(shotObject(intercept,shot_vector,intercept_time,False))
     return shots
+
+def shotFilter(shots, fil):
+    if fil == "soonest":
+        soonest = shots[0]
+        for shot in shots:
+            if shot.intercept_time < soonest.intercept_time:
+                soonest = shot
+        return soonest
+    
 
 def side(x):
     if x <= 0:
