@@ -26,51 +26,20 @@ class simpleBoost(routine):
 class kickoff(routine):
     def __init__(self):
         self.jumped = False
-        self.step = 0
     def run(self,agent):
-        if self.step == 0:
-            main_target = agent.ball.location + ((agent.friend_goal-agent.ball.location).normalize()*150)
-            relative = main_target-agent.me.location
-            defaultPD(agent,agent.me.matrix.dot(relative))
-            defaultThrottle(agent,2300)
-            if relative.magnitude() < 600:
-                self.step = 1
-                agent.stack.append(flip(agent.me.matrix.dot(agent.foe_goal-agent.me.location)))
-        else:
-            if not agent.me.airborne:
-                ball_future = agent.ball.location + (3 * agent.ball.velocity.flatten())
-                my_cone = shotConeRatio(agent.me,ball_future)
-                foe_cone = shotConeRatio(agent.foes[0],ball_future)
-                print(my_cone,foe_cone)
-                if my_cone < -0.5:
-                    agent.stack.pop()
-                    agent.stack.append(shot(shotFilter(shotFinder(agent),"soonest")))
-                    pass
-                elif foe_cone < -0.5:
-                    #clear
-                    agent.stack.pop()
-                    agent.stack.append(shot(shotFilter(shotFinder(agent,True),"soonest")))
-                    pass
-                else:
-                    boosts = [x for x in agent.large_boosts if abs(x.location[1]-agent.friend_goal[1])<abs(agent.ball.location[1]-agent.friend_goal[1]) and x.active == True]
-                    closest = boosts[0]
-                    distance = (agent.me.location - closest.location).magnitude()
-                    for i in range(1,len(boosts)):
-                        temp = (boosts[i].location-agent.me.location).magnitude()
-                        if temp < distance:
-                            closest = boosts[i]
-                            distance = temp
-                    agent.stack.pop()
-                    agent.stack.append(handbrakeTurn(agent.friend_goal, (agent.ball.location - agent.friend_goal).normalize()))
-                    agent.stack.append(simpleBoost(closest))
-            else:
-                defaultPD(agent,agent.me.matrix.dot(agent.ball.location-agent.me.location))
+        main_target = agent.ball.location + ((agent.friend_goal.location-agent.ball.location).normalize()*150)
+        relative = main_target-agent.me.location
+        defaultPD(agent,agent.me.matrix.dot(relative))
+        defaultThrottle(agent,2300)
+        if relative.magnitude() < 600:
+            agent.stack.pop()
+            agent.stack.append(flip(agent.me.matrix.dot(agent.foe_goal.location-agent.me.location)))
         
 class defend(routine):
     def __init__(self):
         self.step = 0
     def run(self,agent):
-        relative = agent.ball.location-agent.friend_goal
+        relative = agent.ball.location-agent.friend_goal.location
         goal_to_ball = relative.normalize()
         distance = relative.magnitude()
         if self.step == 0:
@@ -78,8 +47,8 @@ class defend(routine):
                 agent.stack.append(handbrakeTurn(agent.friend_goal,goal_to_ball))
             self.step = 1
         elif self.step == 1:
-            projection_distance = (agent.me.location-agent.friend_goal).dot(goal_to_ball)
-            target = agent.friend_goal + (goal_to_ball*(projection_distance/1.2))
+            projection_distance = (agent.me.location-agent.friend_goal.location).dot(goal_to_ball)
+            target = agent.friend_goal.location + (goal_to_ball*(projection_distance/1.2))
                 
 class shot(routine):
     def __init__(self,s,speed=0):
@@ -88,12 +57,16 @@ class shot(routine):
         self.intercept_time = s.intercept_time
         self.speed = speed
     def run(self,agent):
-        time_remaining = cap(self.intercept_time-agent.time,0.001,20.0)
+        raw_time_remaining = self.intercept_time-agent.time
+        time_remaining = cap(raw_time_remaining,0.001,20.0)
         distance_to_target = (self.target - agent.me.location).flatten().magnitude()            
         velocity_local = agent.me.matrix.dot(agent.me.velocity)
         velocity_target = distance_to_target / time_remaining #todo- factor in self.speed
-        defaultThrottle(agent, velocity_target, velocity_local[0])#todo-slow down for big turns
+        defaultThrottle(agent, velocity_target)#todo-slow down for big turns
         height_velocity = (self.target-agent.me.location)[2] / time_remaining #vel to reach height
+
+        if raw_time_remaining < -0.5 or velocity_target > 2350:
+            agent.stack.pop()
         if height_velocity*2 >= velocity_target:
             local_drive_target = agent.me.matrix.dot(self.target-agent.me.location)
             angles = defaultPD(agent,local_drive_target)
@@ -106,6 +79,7 @@ class shot(routine):
             local_drive_target = agent.me.matrix.dot(drive_target - agent.me.location)
             angles = defaultPD(agent, local_drive_target)
             agent.c.boost = False if abs(angles[2]) > 1.57 else agent.c.boost
+            
         
 class aerial(routine):
     def __init__(self,target,time):

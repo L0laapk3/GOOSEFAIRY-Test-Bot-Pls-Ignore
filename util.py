@@ -13,21 +13,18 @@ def defaultPosession(agent,car):
     total = ball_kinetic + potential + car_kinetic
     return int(total - (distance))
 
-def shotConeRatio(car,ball_location,posts = True):
+def shotConeRatio(car,ball_location,target_start,target_stop=None):
     #returns a number between -10.0 and 10.0
     #-10.0 means you are in the center of your shot cone
     #-0.5 is still dangerous, but anything higher means you're too off-sides to take a shot
     relative = (ball_location-car.location)
-    if posts:
-        shot_vector = bestShotVector(car,ball_location)
+    if target_stop != None:
+        shot_vector = bestShotVector(car,ball_location,target_start,target_stop)
     else:
-        shot_vector = (Vector3(0,5100*car.team,100)-ball_location).normalize()
+        shot_vector = (target_start - ball_location).normalize()
     projection_distance = (relative).dot(shot_vector)
     cross_vector = shot_vector.cross([0,0,1])
     cross_distance = (relative).dot(cross_vector)
-    #agent.gui.line(ball_location,left_post,(255,235,175,0))
-    #agent.gui.line(ball_location,right_post,(255,0,175,235))
-    #agent.gui.line(ball_location, ball_location + (shot_vector*2000),(255,255,0,255))
     if cross_distance != 0.0:
         return cap(-projection_distance / abs(cross_distance),-10.0,10.0)
     else:
@@ -40,11 +37,13 @@ def backsolve(target,agent,time):
     dz = (2 * ((325*time)+((d[2]/time)-agent.me.velocity[2])))/time
     return Vector3(dx,dy,dz)
 
-def bestShotVector(car,ball_location):
+def bestShotVector(car,ball_location,target_start,target_stop):
     relative = (ball_location-car.location)
-    left_post_vector = Vector3(750*-side(car.team),5150*-side(car.team),100)-ball_location
-    right_post_vector = Vector3(750*side(car.team),5150*-side(car.team),100)-ball_location
-    return (relative).clamp(left_post_vector,right_post_vector).normalize()
+    if target_stop != None:
+        left_post_vector = target_start-ball_location
+        right_post_vector = target_stop-ball_location
+        return (relative).clamp(left_post_vector,right_post_vector).normalize()
+    return relative.normalize()
 
 def cap(x, low, high):
     if x < low:
@@ -85,11 +84,10 @@ def field(point,radius):
         return False
     return True    
     
-
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
 
-def shotFinder(agent,up=False):
+def shotFinder(agent,target_start, target_stop=None):
     shots = []
     struct = agent.get_ball_prediction_struct()
     for i in range(18,struct.num_slices,18):
@@ -102,25 +100,16 @@ def shotFinder(agent,up=False):
         time_remaining -= angle*0.446
         if time_remaining > 0.0:
             if (ball-agent.me.location).magnitude() / time_remaining < 2250:        
-                ratio = shotConeRatio(agent.me,ball,True)
-                if up and ratio < -0.1:
-                    upfield_vector = Vector3(0,1.0*-side(agent.team),0)
-                    intercept = ball - (93*upfield_vector)
-                    shots.append(shotObject(intercept,upfield_vector,intercept_time,True))
-                if ratio < -0.5:
-                    shot_vector = bestShotVector(agent.me,ball)
+                ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
+                if ball[2] > 200 and ratio < -2.0 and agent.me.boost > (ball[2]/10):
+                    shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
                     intercept = ball - (93*shot_vector)
-                    shots.append(shotObject(intercept,shot_vector,intercept_time,False))
+                    shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))
+                elif ball[2] <= 200 and ratio < -0.5:
+                    shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
+                    intercept = ball - (93*shot_vector)
+                    shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))                 
     return shots
-
-def shotFilter(shots, fil):
-    if fil == "soonest":
-        soonest = shots[0]
-        for shot in shots:
-            if shot.intercept_time < soonest.intercept_time:
-                soonest = shot
-        return soonest
-    
 
 def side(x):
     if x <= 0:

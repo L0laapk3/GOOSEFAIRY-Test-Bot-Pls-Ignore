@@ -32,47 +32,76 @@ class watchout(BaseAgent):
  
         self.friends = []
         self.foes = []
-        self.friend_goal = Vector3(0,5150*side(self.team),10)
-        self.foe_goal = Vector3(0,5150*-side(self.team),10)
+        self.friend_goal = goalObject(self.team)
+        self.foe_goal = goalObject(not self.team)
         
-        self.stack = [atba()]
+        self.stack = []
         self.time = 0.0
         self.need_setup = True
         self.kickoff = False
         self.made_kickoff_routine = False
 
-        self.gui = gui(self,True) #True to enable GUI
-
-    def test(self):
-        car = CarState(boost_amount=100, physics=Physics(velocity=vector3(0,0,0),angular_velocity=vector3(0,0,0),location=vector3(3000,3000,20),rotation=Rotator(0,1.5,0)))
-        ball = BallState(physics=Physics(location=vector3(0,-side(self.team)*3000,94),angular_velocity=vector3(0,0,0), velocity=vector3(0,0,3000)))
-        game = GameState(ball=ball, cars = {self.index: car})
-        self.set_game_state(game)
+        self.gui = gui(self,False) #True to enable GUI
 
     def watchdog(self):
+        """
+        Kickoff
+        """
         if self.kickoff == True and self.made_kickoff_routine == False:
             self.stack.append(kickoff())
             self.made_kickoff_routine = True
         elif self.kickoff == False and self.made_kickoff_routine == True:
             self.made_kickoff_routine = False
+            
 
-        #decision tree for 1v1
-        if len(self.stack) < 2:
-            #pos = defaultPosession(self,self.me) - defaultPosession(self,self.foes[0])
-            shots = shotFinder(self)
-            self.stack.append(shot(shotFilter(shots,"soonest")))
-            for item in shots:
-                item.render(self)
+        """
+        1v1 Strategy
+        """
+        if len(self.stack) < 1:
+            if shotConeRatio(self.me,self.ball.location, self.foe_goal.left_post, self.foe_goal.right_post) < -0.5:
+                shots = shotFinder(self,self.foe_goal.left_post, self.foe_goal.right_post)
+                if len(shots) > 0:
+                    best = 0
+                    for i in range(len(shots)):
+                        if shots[i].ratio < shots[best].ratio:
+                            best = i
+                    medium = best // 2
+                    self.stack.append(shot(shots[medium]))
+                else:
+                    ball_dist = abs(self.friend_goal.location[1]-self.ball.location[1])
+                    temps = [boost for boost in self.large_boosts if abs(self.friend_goal.location[1]-boost.location[1])<ball_dist and boost.active]
+                    if len(temps) > 0:
+                        closest = temps[0]
+                        for boost in temps:
+                            if (boost.location - self.me.location).magnitude() < (closest.location - self.me.location).magnitude():
+                                closest = boost
+                        self.stack.append(simpleBoost(closest))
+            else:
+                if self.me.location[0] > self.ball.location[0]:
+                    target = self.ball.location + Vector3(-2000,0,0)
+                else:
+                    target = self.ball.location + Vector3(2000,0,0)
+                shots = shotFinder(self,target)
+                if len(shots) > 0:
+                    best = 0
+                    for i in range(len(shots)):
+                        if shots[i].ratio < shots[best].ratio:
+                            best = i
+                    medium = best // 2
+                    self.stack.append(shot(shots[medium]))
+                else:
+                    print("idk how you got here")
+            
             
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
-        #now = time.clock()
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
-        self.stack[-1].run(self)
+        if len(self.stack) > 0:
+            print(self.stack[-1])
+            self.stack[-1].run(self)
         self.gui.update(self)
-        #print(time.clock()-now)
         return self.c
 
     def preprocess(self,packet):
