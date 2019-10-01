@@ -40,8 +40,8 @@ def backsolve(target,agent,time):
 def bestShotVector(car,ball_location,target_start,target_stop):
     relative = (ball_location-car.location)
     if target_stop != None:
-        left_post_vector = target_start-ball_location
-        right_post_vector = target_stop-ball_location
+        left_post_vector = target_stop-ball_location
+        right_post_vector = target_start-ball_location
         return (relative).clamp(left_post_vector,right_post_vector).normalize()
     return relative.normalize()
 
@@ -90,7 +90,7 @@ def radius(v):
 def shotFinder(agent,target_start, target_stop=None):
     shots = []
     struct = agent.get_ball_prediction_struct()
-    for i in range(18,struct.num_slices,18):
+    for i in range(12,struct.num_slices,12):
         intercept_time = struct.slices[i].game_seconds
         time_remaining = intercept_time - agent.time
         temp = struct.slices[i].physics.location
@@ -99,17 +99,29 @@ def shotFinder(agent,target_start, target_stop=None):
         angle = car_to_ball.angle(agent.me.matrix[0])
         time_remaining -= angle*0.446
         if time_remaining > 0.0:
-            if (ball-agent.me.location).magnitude() / time_remaining < 2250:        
+            if (ball-agent.me.location).magnitude() / time_remaining < 2300:
                 ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
-                if ball[2] > 200 and ratio < -2.0 and agent.me.boost > (ball[2]/10):
+                if ball[2] > 180 and ratio < -1.0 and agent.me.boost > (ball[2]/30):
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
-                    intercept = ball - (93*shot_vector)
+                    intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))
-                elif ball[2] <= 200 and ratio < -0.5:
+                elif ball[2] <= 180 and ratio < -0.5:
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
-                    intercept = ball - (93*shot_vector)
+                    intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))                 
     return shots
+
+def shotValid(slices, shot):
+    while len(slices) > 1:
+        if slices[len(slices)//2].game_seconds > shot.intercept_time:
+            slices = slices[:len(slices)//2]
+        else:
+            slices = slices[len(slices)//2:]
+    temp = slices[0].physics.location
+    slice_intercept = Vector3(temp.x,temp.y,temp.z)
+    if (shot.intercept - slice_intercept).magnitude() > 150:
+        return False
+    return True
 
 def side(x):
     if x <= 0:

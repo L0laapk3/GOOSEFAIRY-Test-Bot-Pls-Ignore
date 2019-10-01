@@ -56,8 +56,8 @@ class goalObject:
     def __init__(self,team):
         team = 1 if team == 1 else -1
         self.location = Vector3(0,team * 5150,0)
-        self.left_post = Vector3(-team * 750,team * 5150,0)
-        self.right_post = Vector3(team * 750,team * 5150,0)
+        self.left_post = Vector3(-team * 720,team * 5150,0)
+        self.right_post = Vector3(team * 720,team * 5150,0)
         
 class Matrix3:
     def __init__(self,r):
@@ -117,6 +117,8 @@ class Vector3:
         self.data = args[0] if isinstance(args[0],list) else [x for x in args]
     def __getitem__(self,key):
         return self.data[key]
+    def __setitem__(self,key,value):
+        self.data[key] = value
     def __str__(self):
         return str(self.data)
     def __add__(self,value):

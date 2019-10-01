@@ -41,7 +41,7 @@ class watchout(BaseAgent):
         self.kickoff = False
         self.made_kickoff_routine = False
 
-        self.gui = gui(self,False) #True to enable GUI
+        self.gui = gui(self,True) #True to enable GUI
 
     def watchdog(self):
         """
@@ -52,13 +52,11 @@ class watchout(BaseAgent):
             self.made_kickoff_routine = True
         elif self.kickoff == False and self.made_kickoff_routine == True:
             self.made_kickoff_routine = False
-            
-
         """
         1v1 Strategy
         """
         if len(self.stack) < 1:
-            if shotConeRatio(self.me,self.ball.location, self.foe_goal.left_post, self.foe_goal.right_post) < -0.5:
+            if shotConeRatio(self.me,self.ball.location, self.foe_goal.left_post, self.foe_goal.right_post) < -0.0:
                 shots = shotFinder(self,self.foe_goal.left_post, self.foe_goal.right_post)
                 if len(shots) > 0:
                     best = 0
@@ -68,30 +66,51 @@ class watchout(BaseAgent):
                     medium = best // 2
                     self.stack.append(shot(shots[medium]))
                 else:
-                    ball_dist = abs(self.friend_goal.location[1]-self.ball.location[1])
-                    temps = [boost for boost in self.large_boosts if abs(self.friend_goal.location[1]-boost.location[1])<ball_dist and boost.active]
-                    if len(temps) > 0:
-                        closest = temps[0]
-                        for boost in temps:
-                            if (boost.location - self.me.location).magnitude() < (closest.location - self.me.location).magnitude():
-                                closest = boost
+                    pass
+        """
+                    left = Vector3(-3600*side(self.team),-5000*self.team,0)
+                    right = Vector3(3600*side(self.team),-5000*self.team,0)
+                    shots = shotFinder(self, left, right)
+                    if len(shots) > 0:
+                        best = 0
+                        for i in range(len(shots)):
+                            if shots[i].ratio < shots[best].ratio:
+                                best = i
+                        medium = best // 4
+                        self.stack.append(shot(shots[medium]))
+                    elif self.me.boost < 50:
+                        my_dist = (self.friend_goal.location-self.me.location).magnitude()
+                        temps = [boost for boost in self.large_boosts if (self.friend_goal.location-boost.location).magnitude()<my_dist and boost.active]
+                        if len(temps) > 0:
+                            closest = temps[0]
+                            for boost in temps:
+                                if (boost.location - self.me.location).magnitude() < (closest.location - self.me.location).magnitude():
+                                    closest = boost
+                            self.stack.append(simpleBoost(closest))
+                    else:
                         self.stack.append(simpleBoost(closest))
             else:
-                if self.me.location[0] > self.ball.location[0]:
-                    target = self.ball.location + Vector3(-2000,0,0)
+                left = Vector3(-900*side(self.team),4100*side(self.team),0)
+                right = Vector3(-900*side(self.team),-4100*side(self.team),0)
+                self.gui.line(self.me.location, left, (255,255,0,255))
+                self.gui.line(self.me.location, right, (255,0,0,255))
+                ratio = shotConeRatio(self.me,self.ball.location,right,left)
+                if  ratio< 0.0:
+                    shots = shotFinder(self, right, left)
                 else:
-                    target = self.ball.location + Vector3(2000,0,0)
-                shots = shotFinder(self,target)
+                    left = Vector3(900*side(self.team),4100*side(self.team),0)
+                    right = Vector3(900*side(self.team),-4100*side(self.team),0)
+                    shots = shotFinder(self, left, right)
                 if len(shots) > 0:
                     best = 0
                     for i in range(len(shots)):
                         if shots[i].ratio < shots[best].ratio:
                             best = i
-                    medium = best // 2
+                    medium = best // 4
                     self.stack.append(shot(shots[medium]))
                 else:
-                    print("idk how you got here")
-            
+                    print("idk how you got here_ 2")
+            """
             
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
@@ -99,7 +118,6 @@ class watchout(BaseAgent):
         self.c.__init__()
         self.watchdog()
         if len(self.stack) > 0:
-            print(self.stack[-1])
             self.stack[-1].run(self)
         self.gui.update(self)
         return self.c
