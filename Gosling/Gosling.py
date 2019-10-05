@@ -8,9 +8,8 @@ from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics,
 from objects import *
 from routines import *
 from graphics import *
-from strategy import *
 
-class watchout(BaseAgent):
+class Gosling(BaseAgent):
     def initialize_agent(self):
         self.c = SimpleControllerState()
         self.me = carObject(self.index)
