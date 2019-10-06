@@ -101,11 +101,11 @@ def shotFinder(agent,target_start, target_stop=None):
         if time_remaining > 0.0 and abs(ball[1]) < 5300:
             if (ball-agent.me.location).magnitude() / time_remaining < 2250:
                 ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
-                if ball[2] > 300 and ratio < -1.0 and agent.me.boost > ((ball[2]-200)/25):
+                if ball[2] > 300 and ratio < -1.5 and agent.me.boost > ((ball[2]-200)/25):
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
                     intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))
-                elif ball[2] <= 300 and ratio < -0.5:
+                elif ball[2] <= 300 and ratio < -1.0:
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
                     intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))                 
