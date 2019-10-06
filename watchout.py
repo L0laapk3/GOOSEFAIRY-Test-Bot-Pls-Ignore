@@ -42,6 +42,8 @@ class watchout(BaseAgent):
         self.made_kickoff_routine = False
 
         self.gui = gui(self,False) #True to enable GUI
+        
+        self.match_ended = False
 
     def watchdog(self):
         """
@@ -94,6 +96,10 @@ class watchout(BaseAgent):
                 
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
+        if packet.game_info.is_match_ended != self.match_ended:
+            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)
+        self.match_ended = packet.game_info.is_match_ended
+        
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
