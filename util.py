@@ -90,23 +90,22 @@ def radius(v):
 def shotFinder(agent,target_start, target_stop=None):
     shots = []
     struct = agent.get_ball_prediction_struct()
-    for i in range(12,struct.num_slices,12):
+    for i in range(10,struct.num_slices,10):
         intercept_time = struct.slices[i].game_seconds
         time_remaining = intercept_time - agent.time
         temp = struct.slices[i].physics.location
         ball = Vector3(temp.x,temp.y,temp.z)
         car_to_ball = (agent.ball.location - agent.me.location).flatten()
         angle = car_to_ball.angle(agent.me.matrix[0])
-        time_remaining -= abs(angle)*0.446
-        if time_remaining > 0.0 and abs(ball[1]) < 5200:
-            max_speed = 1700 if agent.me.boost < 10 else 2250
-            if (ball-agent.me.location).magnitude() / time_remaining < max_speed:
+        time_remaining -= abs(angle)*0.2
+        if time_remaining > 0.0 and abs(ball[1]) < 5300:
+            if (ball-agent.me.location).magnitude() / time_remaining < 2250:
                 ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
-                if ball[2] > 250 and ratio < -0.8 and agent.me.boost > ((ball[2]-250)/30):
+                if ball[2] > 300 and ratio < -1.0 and agent.me.boost > ((ball[2]-200)/25):
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
                     intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))
-                elif ball[2] <= 250 and ratio < -0.5:
+                elif ball[2] <= 300 and ratio < -0.5:
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
                     intercept = ball - (110*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))                 

@@ -57,7 +57,7 @@ class watchout(BaseAgent):
         """
         left = Vector3(-3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
         right = Vector3(3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
-        shots = shotFinder(self,self.foe_goal.left_post, self.foe_goal.right_post)
+        shots = shotFinder(self,self.foe_goal.right_post, self.foe_goal.left_post)
         upfields = shotFinder(self,left,right)
 
         if len(self.stack) > 0:
@@ -67,7 +67,7 @@ class watchout(BaseAgent):
                 self.stack = []
             
         if len(self.stack) < 1:
-            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 1000:
+            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 700:
                 soonest_shot = soonest(shots)
                 soonest_upfield = soonest(upfields)
                 if soonest_shot.intercept_time < soonest_upfield.intercept_time:
@@ -79,12 +79,15 @@ class watchout(BaseAgent):
             elif len(upfields) > 0:
                 self.stack.append(shot(soonest(upfields)))   
             elif self.me.boost < 50:                   
-                our_boosts = [x for x in self.large_boosts if (x.location-self.friend_goal.location).magnitude() < 7000 and x.active]
-                closest = our_boosts[0]
-                for boost in our_boosts:
-                    if (self.me.location-boost.location).magnitude() < (self.me.location-closest.location).magnitude():
-                        closest = boost
-                self.stack.append(simpleBoost(closest))
+                our_boosts = [x for x in self.large_boosts if x.active and side(self.team)*(x.location[1] + 750 - self.me.location[1]) > 0 ]
+                if len(our_boosts) > 0:
+                    closest = our_boosts[0]
+                    for boost in our_boosts:
+                        if (self.me.location-boost.location).magnitude() < (self.me.location-closest.location).magnitude():
+                            closest = boost
+                    self.stack.append(simpleBoost(closest))
+                else:
+                    self.stack.append(goto(self.friend_goal.location))
             else:
                 self.stack.append(goto(self.friend_goal.location))
 
