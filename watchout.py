@@ -4,6 +4,7 @@ from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.agents.base_agent import  SimpleControllerState
 from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics, Vector3 as vector3, Rotator
+from rlbot.utils.structures.quick_chats import QuickChats
 
 from objects import *
 from routines import *
@@ -97,9 +98,7 @@ class watchout(BaseAgent):
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         if packet.game_info.is_match_ended != self.match_ended:
-            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)
-        self.match_ended = packet.game_info.is_match_ended
-        
+            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)        
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
@@ -119,6 +118,7 @@ class watchout(BaseAgent):
         for pad in self.all_boosts: pad.update(packet.game_boosts)
 
         self.kickoff = packet.game_info.is_round_active and packet.game_info.is_kickoff_pause
+        self.match_ended = packet.game_info.is_match_ended
 
         if self.need_setup:
             for i in range(packet.num_cars):

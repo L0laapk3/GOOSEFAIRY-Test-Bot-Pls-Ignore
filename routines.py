@@ -77,7 +77,7 @@ class shot(routine):
 
         if raw_time_remaining < -0.35 or velocity_target > 2500 or not shotValid(agent.get_ball_prediction_struct().slices,self.s):
             agent.stack.pop()
-        elif self.target[2] > 120 and time_remaining < cap(math.sqrt(cap(relative[2],1,6000)/450),0.5,100):
+        elif not agent.me.airborne and self.target[2] > 120 and time_remaining < cap(math.sqrt(cap(relative[2],1,6000)/400),0.1,100):
             local_drive_target = agent.me.matrix.dot(self.target-agent.me.location)
             angles = defaultPD(agent,local_drive_target)
             fly_target = backsolve(self.target,agent,time_remaining)
