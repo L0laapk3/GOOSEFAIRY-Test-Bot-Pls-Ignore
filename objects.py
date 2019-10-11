@@ -55,9 +55,9 @@ class shotObject:
 class goalObject:
     def __init__(self,team):
         team = 1 if team == 1 else -1
-        self.location = Vector3(0,team * 5150,0)
-        self.left_post = Vector3(-team * 720,team * 5150,0)
-        self.right_post = Vector3(team * 720,team * 5150,0)
+        self.location = Vector3(0, team * 5150, 320)
+        self.left_post = Vector3(-team * 720, team * 5150, 320)
+        self.right_post = Vector3(team * 720, team * 5150, 320)
         
 class Matrix3:
     def __init__(self,r):

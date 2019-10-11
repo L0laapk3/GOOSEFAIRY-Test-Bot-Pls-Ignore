@@ -9,7 +9,6 @@ from rlbot.utils.structures.quick_chats import QuickChats
 from objects import *
 from routines import *
 from graphics import *
-from strategy import *
 
 class watchout(BaseAgent):
     def initialize_agent(self):
@@ -42,7 +41,7 @@ class watchout(BaseAgent):
         self.kickoff = False
         self.made_kickoff_routine = False
 
-        self.gui = gui(self,False) #True to enable GUI
+        self.gui = gui(self,True) #True to enable GUI
         
         self.match_ended = False
 
@@ -58,6 +57,8 @@ class watchout(BaseAgent):
         """
         1v1 Strategy
         """
+        #print((self.foes[0].location-self.ball.location).magnitude())
+        
         left = Vector3(-3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
         right = Vector3(3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
         shots = shotFinder(self,self.foe_goal.right_post, self.foe_goal.left_post)
@@ -93,12 +94,9 @@ class watchout(BaseAgent):
                     self.stack.append(goto(self.friend_goal.location))
             else:
                 self.stack.append(goto(self.friend_goal.location))
+          
 
-                
-
-    def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
-        if packet.game_info.is_match_ended != self.match_ended:
-            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)        
+    def get_output(self, packet: GameTickPacket) -> SimpleControllerState:      
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
@@ -118,6 +116,8 @@ class watchout(BaseAgent):
         for pad in self.all_boosts: pad.update(packet.game_boosts)
 
         self.kickoff = packet.game_info.is_round_active and packet.game_info.is_kickoff_pause
+        if packet.game_info.is_match_ended != self.match_ended:
+            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)
         self.match_ended = packet.game_info.is_match_ended
 
         if self.need_setup:

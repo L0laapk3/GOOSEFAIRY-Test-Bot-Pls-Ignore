@@ -82,7 +82,12 @@ def field(point,radius):
         return False
     elif point[0] > 2800 - radius and point[1] > -point[0] + 7750 - radius:
         return False
-    return True    
+    return True
+
+def hitboxDist(angle):
+    x = math.cos(abs(angle))
+    y = math.sin(abs(angle))
+    return (x*73) + (y*42) + 93
     
 def radius(v):
     return 139.059 + (0.1539 * v) + (0.0001267716565 * v * v)
@@ -93,33 +98,52 @@ def shotFinder(agent,target_start, target_stop=None):
     for i in range(10,struct.num_slices,10):
         intercept_time = struct.slices[i].game_seconds
         time_remaining = intercept_time - agent.time
-        temp = struct.slices[i].physics.location
-        ball = Vector3(temp.x,temp.y,temp.z)
-        car_to_ball = (agent.ball.location - agent.me.location).flatten()
-        angle = car_to_ball.angle(agent.me.matrix[0])
-        time_remaining -= abs(angle)*0.2
-        if time_remaining > 0.0 and abs(ball[1]) < 5300:
-            if (ball-agent.me.location).magnitude() / time_remaining < 2250:
+        if time_remaining > 0.0:
+            temp = struct.slices[i].physics.location
+            ball = Vector3(temp.x,temp.y,temp.z)
+            car_to_ball = (agent.ball.location - agent.me.location)
+            angle = car_to_ball.angle(agent.me.matrix[0])
+            time_remaining -= abs(angle)*0.318
+            if time_remaining > 0.0 and abs(ball[1]) < 5300 and (ball-agent.me.location).magnitude() / time_remaining < 2250:
                 ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
-                if ball[2] > 300 and ratio < -1.5 and agent.me.boost > ((ball[2]-200)/25):
+                if ball[2] > 220 and ratio < -1.5 and agent.me.boost > ((ball[2]-200)/25):
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
-                    intercept = ball - (110*shot_vector)
+                    intercept = ball - (93*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))
-                elif ball[2] <= 300 and ratio < -1.0:
+                elif ball[2] <= 220 and ratio < -0.5:
                     shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
-                    intercept = ball - (110*shot_vector)
+                    intercept = ball - (93*shot_vector)
                     shots.append(shotObject(intercept,shot_vector,intercept_time,ratio))                 
     return shots
 
-def shotValid(slices, shot):
-    while len(slices) > 1:
-        if slices[len(slices)//2].game_seconds > shot.intercept_time:
-            slices = slices[:len(slices)//2]
+def shotValid(slices, shot, agent):
+    for i in range(len(slices)):
+        if slices[i].game_seconds > shot.intercept_time:
+            mi = i-1
+            ma = i
+            break
+    print(slices[i].game_seconds-shot.intercept_time)
+    
+    """
+    mi = 0
+    ma = len(slices)-1
+    while len(slices[mi:ma+1]) > 2:
+        if slices[(ma-mi)//2].game_seconds > shot.intercept_time:
+            ma = (ma+mi)//2
         else:
-            slices = slices[len(slices)//2:]
-    temp = slices[0].physics.location
-    slice_intercept = Vector3(temp.x,temp.y,temp.z)
-    if (shot.intercept - slice_intercept).magnitude() > 130:
+            mi =(ma+mi)//2
+    """
+    dt = slices[ma].game_seconds - slices[mi].game_seconds
+    time_from_mi = shot.intercept_time-slices[mi].game_seconds
+    mi = slices[mi].physics.location
+    ma = slices[ma].physics.location
+    slopes = Vector3(ma.x-mi.x,ma.y-mi.y,ma.z-mi.z) * (1 / dt)
+    slice_intercept = Vector3(mi.x,mi.y,mi.z) + (slopes * time_from_mi)
+    agent.gui.star(slice_intercept,(255,0,0,255))
+    agent.gui.star(Vector3(mi.x,mi.y,mi.z),(0,255,0,255))
+    agent.gui.star(Vector3(ma.x,ma.y,ma.z),(0,0,255,255))
+    
+    if (shot.intercept - slice_intercept).magnitude() > 99:
         return False
     return True
 

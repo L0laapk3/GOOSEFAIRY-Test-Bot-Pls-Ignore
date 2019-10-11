@@ -1,8 +1,14 @@
 x = [1, 3, 5, 7, 9, 11, 13]
-y = 14
-while len(x) > 1:
-    if x[len(x)//2] > y:
-        x = x[:len(x)//2]
+y = 6
+
+
+mi = 0
+ma = len(x)-1
+
+while len(x[mi:ma+1]) > 2:
+    if x[(ma+mi)//2] > y:
+        ma = (ma+mi)//2
     else:
-        x = x[len(x)//2:]
-print(x)
+        mi = (ma+mi)//2
+
+print(mi,ma)
