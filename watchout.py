@@ -41,7 +41,7 @@ class watchout(BaseAgent):
         self.kickoff = False
         self.made_kickoff_routine = False
 
-        self.gui = gui(self,True) #True to enable GUI
+        self.gui = gui(self,False) #True to enable GUI
         
         self.match_ended = False
 
@@ -58,10 +58,11 @@ class watchout(BaseAgent):
         1v1 Strategy
         """
         #print((self.foes[0].location-self.ball.location).magnitude())
-        
+
         left = Vector3(-3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
         right = Vector3(3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
         shots = shotFinder(self,self.foe_goal.right_post, self.foe_goal.left_post)
+                
         upfields = shotFinder(self,left,right)
 
         if len(self.stack) > 0:
@@ -71,17 +72,17 @@ class watchout(BaseAgent):
                 self.stack = []
             
         if len(self.stack) < 1:
-            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 700:
+            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 1000:
                 soonest_shot = soonest(shots)
                 soonest_upfield = soonest(upfields)
                 if soonest_shot.intercept_time < soonest_upfield.intercept_time:
-                    self.stack.append(shot(soonest_shot))
+                    self.stack.append(soonest_shot)
                 else:
-                    self.stack.append(shot(soonest_upfield))                
+                    self.stack.append(soonest_upfield)                
             elif len(shots) > 0:
-                self.stack.append(shot(soonest(shots)))
+                self.stack.append(soonest(shots))
             elif len(upfields) > 0:
-                self.stack.append(shot(soonest(upfields)))   
+                self.stack.append(soonest(upfields)) 
             elif self.me.boost < 50:                   
                 our_boosts = [x for x in self.large_boosts if x.active and side(self.team)*(x.location[1] + 750 - self.me.location[1]) > 0 ]
                 if len(our_boosts) > 0:

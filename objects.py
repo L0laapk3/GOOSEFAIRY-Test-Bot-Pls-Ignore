@@ -40,24 +40,13 @@ class boostObject:
         self.is_large = is_large
     def update(self,game_boosts):
         self.active = game_boosts[self.index].is_active
-
-class shotObject:
-    def __init__(self,intercept,vector,time,ratio):
-        self.intercept = intercept
-        self.vector = vector
-        self.intercept_time = time
-        self.ratio = ratio
-    def render(self,agent):
-        agent.gui.star(self.intercept,(255,255,255,255))
-        color = (255,255,0,255)
-        agent.gui.line(self.intercept-(self.vector*1000),self.intercept+(self.vector*1000),color)
         
 class goalObject:
     def __init__(self,team):
         team = 1 if team == 1 else -1
         self.location = Vector3(0, team * 5150, 320)
-        self.left_post = Vector3(-team * 720, team * 5150, 320)
-        self.right_post = Vector3(team * 720, team * 5150, 320)
+        self.left_post = Vector3(-team * 700, team * 5150, 320)
+        self.right_post = Vector3(team * 700, team * 5150, 320)
         
 class Matrix3:
     def __init__(self,r):
