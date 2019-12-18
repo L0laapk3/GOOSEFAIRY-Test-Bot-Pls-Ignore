@@ -15,16 +15,20 @@ class simpleBoost(routine):
         distance = (relative).magnitude()
         local = agent.me.matrix.dot(relative)
         angles = defaultPD(agent, local)
+        speed = defaultThrottle(agent,2300)
         if abs(angles[2]) > 1.0:
             agent.c.handbrake = True
-        speed = defaultThrottle(agent,2300)
-        if speed > 700 and not agent.me.airborne and distance / speed > 2.5 and abs(angles[2]) <= 0.10:
+        if speed > 750 and not agent.me.airborne and distance / speed > 2.0 and abs(angles[2]) <= 0.12:
             agent.stack.append(flip(local))
         if not self.boost.is_large or agent.me.airborne:
             agent.c.boost = False
         if not self.boost.active or agent.me.boost > 99:
             agent.stack.pop()
-
+        if distance/cap(speed,0.01,2400) < 0.1:
+            agent.c.handbrake = True
+            defaultPD(agent, agent.me.matrix.dot(agent.ball.location-agent.me.location))
+        agent.c.boost = False if abs(angles[2]) > 0.3 or agent.me.airborne else agent.c.boost
+            
 class kickoff(routine):
     def __init__(self):
         self.jumped = False
@@ -51,48 +55,73 @@ class defend(routine):
         elif self.step == 1:
             projection_distance = (agent.me.location-agent.friend_goal.location).dot(goal_to_ball)
             target = agent.friend_goal.location + (goal_to_ball*(projection_distance/1.2))
+
+def shotFinder(agent,target_start, target_stop=None):
+    shots = []
+    struct = agent.get_ball_prediction_struct()
+    for i in range(10,struct.num_slices,10):
+        intercept_time = struct.slices[i].game_seconds
+        time_remaining = intercept_time - agent.time
+        temp = struct.slices[i].physics.location
+        ball = Vector3(temp.x,temp.y,temp.z)
+        car_to_ball = (ball - agent.me.location)
+        angle = min(car_to_ball.angle(agent.me.matrix[0]),car_to_ball.angle(-1*agent.me.matrix[0]))
+        ratio = shotConeRatio(agent.me,ball,target_start,target_stop)
+        time_remaining -= abs(angle)*0.318
+        time_remaining -= abs(0.25 / cap(ratio,-10,-1))
+        if abs(ball[1]) > 5200:
+            break
+        if time_remaining > 0.1 and (ball-agent.me.location).magnitude() / time_remaining < 2300:
+            if car_to_ball[2] >= 280 and ratio < -2.0 and agent.me.boost > ((ball[2]-200)/20):
+                shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
+                shots.append(shot(ball,shot_vector,intercept_time,ratio))
+            if car_to_ball[2] < 280 and ratio < -0.5:
+                shot_vector = bestShotVector(agent.me,ball,target_start,target_stop)
+                shots.append(shot(ball,shot_vector,intercept_time,ratio))             
+    return shots
                 
 class shot(routine):
-    def __init__(self,s,speed=0):
-        self.s = s
-        self.target = s.intercept
-        self.vector = s.vector
-        self.intercept_time = s.intercept_time
-        self.speed = speed
+    def __init__(self,ball,vector,time,ratio,speed = 0):
+        self.ball = ball
+        self.intercept = ball - (vector.flatten()*93)
+        self.vector = vector
+        self.intercept_time = time
+        self.ratio = ratio
+        self.speed = speed #todo - make work
+        
     def run(self,agent):
         raw_time_remaining = self.intercept_time-agent.time
         time_remaining = cap(raw_time_remaining,0.001,20.0)
-        relative = self.target - agent.me.location
-        distance_to_target = (relative).flatten().magnitude()            
-        velocity_local = agent.me.matrix.dot(agent.me.velocity)
-        velocity_target = distance_to_target / time_remaining
-        if self.speed != 0:
-            correction = cap((velocity_target - self.speed)/2,-velocity_target,2300-velocity_target) #make this nicer
-        else:
-            correction= 0
-        defaultThrottle(agent, velocity_target+correction)#todo-slow down for big turns
-
-        if raw_time_remaining < -0.35 or velocity_target > 2500 or not shotValid(agent.get_ball_prediction_struct().slices,self.s):
+        
+        relative = self.intercept - agent.me.location
+        local_target = agent.me.matrix.dot(relative)
+        local_distance = local_target.flatten().magnitude()
+        local_velocity = agent.me.matrix.dot(agent.me.velocity)
+        velocity_target = local_distance / time_remaining
+        direction = sign(local_target[0]) if abs(local_velocity[0]) < 1000 else sign(local_velocity[0])
+        defaultThrottle(agent, velocity_target,direction)#todo-slow down for big turns
+        drive_target = self.intercept - (self.vector * (local_distance/3))
+        local_drive_target = agent.me.matrix.dot(drive_target - agent.me.location)
+        angles = defaultPD(agent, local_drive_target,direction)
+        local_fly_target = agent.me.matrix.dot(backsolve(self.intercept,agent,time_remaining))
+        can_jump = True if local_fly_target.magnitude() / time_remaining < 1000 and agent.me.boost*30.03 > local_fly_target.magnitude()-600  else False
+        
+        if raw_time_remaining < -0.35 or velocity_target > 2500 or not shotValid(agent.get_ball_prediction_struct().slices,self):
             agent.stack.pop()
-        elif self.target[2] > 120 and time_remaining < cap(math.sqrt(cap(relative[2],1,6000)/450),0.5,100):
-            local_drive_target = agent.me.matrix.dot(self.target-agent.me.location)
-            angles = defaultPD(agent,local_drive_target)
-            fly_target = backsolve(self.target,agent,time_remaining)
-            if fly_target.magnitude() < 1000*time_remaining or abs(angles[2])<0.16:
-                agent.stack.pop()
-                agent.stack.append(aerial(self.target,self.s,self.intercept_time))
-            #todo - flip here?
-        else:
-            drive_target = self.target - (self.vector * (distance_to_target/1.75))
-            local_drive_target = agent.me.matrix.dot(drive_target - agent.me.location)
-            angles = defaultPD(agent, local_drive_target)
-            agent.c.boost = False if abs(angles[2]) > 1.57 or agent.me.airborne else agent.c.boost
-            agent.c.handbrake = True if abs(angles[2]) > 1.5 else False
+        elif (abs(angles[2])<0.25 or local_distance < 550) and self.intercept[2] >= 110 and time_remaining < local_target[2]/500:    
+            agent.stack.pop()
+            agent.stack.append(aerial(self.intercept,self,self.intercept_time))
+        elif time_remaining < 0.35 and abs(angles[2]) < 0.15 and local_distance < 200:
+            agent.stack.pop()
+            t= 0.9 if direction == 1 else 0.3
+            agent.stack.append(flip(agent.me.matrix.dot(self.vector),t))
+      
+        agent.c.boost = False if abs(angles[2]) > 0.3 or agent.me.airborne or direction == -1 else agent.c.boost
+        agent.c.handbrake = True if abs(angles[2]) > 2.8 and direction == 1 else False
         self.render(agent)
     def render(self,agent):
-        agent.gui.star(self.target,(255,255,255,255))
-        agent.gui.line(self.target, self.target-(self.vector*1000), (255,255,255,255))
-            
+        agent.gui.star(self.intercept,(255,255,255,255))
+        agent.gui.line(self.intercept, self.intercept-(self.vector*1000), (255,255,255,255))
         
 class aerial(routine):
     def __init__(self,target,shot,time):
@@ -105,11 +134,16 @@ class aerial(routine):
     def run(self,agent):
         time_remaining = self.intercept_time - agent.time
         dv_target = backsolve(self.target,agent,time_remaining)
-        dv_target = Vector3(dv_target[0],dv_target[1], dv_target[2] * 2)
         dv_total = dv_target.magnitude()
         dv_local = agent.me.matrix.dot(dv_target)
         angles = defaultPD(agent,dv_local)
         precision = cap((dv_total/1000),0.05, 0.60)
+
+        if time_remaining < -0.2 or (time_remaining > 0.5 and not shotValid(agent.get_ball_prediction_struct().slices,self.shot)):
+            agent.stack.pop()
+        elif time_remaining < 0.5 and self.double == False and abs(self.target[2]-agent.me.location[2]) < 120: #todo - change so that dodge happens sooner when car is at right height
+            agent.stack.pop()
+            agent.stack.append(flip(agent.me.matrix.dot(self.shot.vector)))
 
         if agent.me.airborne == False:
             if self.jump_time < 0.0:
@@ -117,7 +151,7 @@ class aerial(routine):
         elapsed = agent.time - self.jump_time
         if elapsed <= 0.2:
             agent.c.jump = True 
-        elif elapsed >= 0.23 and dv_local[2] > 400:
+        elif elapsed >= 0.23 and dv_local[2] > 300:
             agent.c.jump = True
             self.double = True
             agent.c.pitch = 0
@@ -136,20 +170,12 @@ class aerial(routine):
             angles = defaultPD(agent,fly_target)
             agent.c.boost = False
 
-        if time_remaining < -0.25 or (time_remaining > 0.5 and not shotValid(agent.get_ball_prediction_struct().slices,self.shot)):
-            agent.stack.pop()
-        elif time_remaining < 0.45 and self.double == False and abs(self.target[2]-agent.me.location[2]) < 150: #todo - change so that dodge happens sooner when car is at right height
-            agent.stack.pop()
-            agent.stack.append(flip(agent.me.matrix.dot(self.shot.vector)))
-
 class flip(routine): #dodges in the desired vector
-    def __init__(self, vector):
-        if vector[0] != 0:
-            self.pitch = -math.cos(vector[1]/vector[0])
-            self.yaw = math.sin(vector[1]/vector[0])
-        else:
-            self.pitch = -1
-            self.yaw = sign(vector[1])
+    def __init__(self, vector, cancel_time = 0.9):
+        vector = vector.normalize()
+        self.pitch = abs(vector[0])*-sign(vector[0])
+        self.yaw = abs(vector[1]) * sign(vector[1])
+        self.cancel_time = cancel_time
         self.time = -1
   
     def run(self,agent):
@@ -165,7 +191,7 @@ class flip(routine): #dodges in the desired vector
             agent.c.jump = True
         elif elapsed >=0.1 and elapsed < 0.16:
             agent.c.jump = False
-        elif elapsed >= 0.16 and elapsed < 0.9:
+        elif elapsed >= 0.16 and elapsed < self.cancel_time:
             agent.c.jump = True
             agent.c.pitch = self.pitch
             agent.c.yaw = self.yaw
@@ -201,19 +227,30 @@ class handbrakeTurn(routine):
 
 class atba(routine):
     def run(self,agent):
-        defaultPD(agent, agent.me.matrix.dot(agent.ball.location-agent.me.location))
-        defaultThrottle(agent,10)
+        relative = agent.ball.location-agent.me.location
+        local_target = agent.me.matrix.dot(relative)
+        local_distance = local_target.magnitude()
+        local_velocity = agent.me.matrix.dot(agent.me.velocity)
+        if local_target[0] < 0.0  and (local_distance < 800 or local_distance > 2000):
+            direction = -1
+        else:
+            direction = 1  
+        angles = defaultPD(agent,local_target,direction)
+        defaultThrottle(agent,1000,direction)
 
 class goto(routine):
     def __init__(self,target):
         self.target = target
     def run(self,agent):
         relative = self.target-agent.me.location
-        defaultPD(agent, agent.me.matrix.dot(relative))
-        defaultThrottle(agent,2300)
+        local = agent.me.matrix.dot(relative)
+        angles = defaultPD(agent, local)
+        speed = defaultThrottle(agent,2300)
+        if speed > 700 and not agent.me.airborne and relative.magnitude() / speed > 1.8 and abs(angles[2]) <= 0.10 and agent.me.boost < 30:
+            agent.stack.append(flip(local))
         if agent.me.airborne:
             agent.c.boost = False
-        if relative.magnitude() < 500:
+        if relative.magnitude() < 350:
             agent.stack.pop()
         
         

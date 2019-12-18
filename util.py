@@ -14,21 +14,24 @@ def defaultPosession(agent,car):
     return int(total - (distance))
 
 def shotConeRatio(car,ball_location,target_start,target_stop=None):
-    #returns a number between -10.0 and 10.0
+    #returns a number between -10.0 and 10.0, the vector to shoot along, and an offset ratio
     #-10.0 means you are in the center of your shot cone
     #-0.5 is still dangerous, but anything higher means you're too off-sides to take a shot
     relative = (ball_location-car.location)
+    centerline = target_start+target_stop
     if target_stop != None:
         shot_vector = bestShotVector(car,ball_location,target_start,target_stop)
     else:
         shot_vector = (target_start - ball_location).normalize()
+    
     projection_distance = (relative).dot(shot_vector)
     cross_vector = shot_vector.cross([0,0,1])
     cross_distance = (relative).dot(cross_vector)
+    offset_ratio = shot_vector.angle(centerline) / math.pi 
     if cross_distance != 0.0:
-        return cap(-projection_distance / abs(cross_distance),-10.0,10.0)
+        return cap(-(projection_distance) / abs(cross_distance),-10.0,10.0),shot_vector,offset_ratio
     else:
-        return cap(-projection_distance,-10.0,10.0)
+        return cap(-projection_distance,-10.0,10.0),shot_vector,offset_ratio
     
 def backsolve(target,agent,time):
     d = target-agent.me.location
@@ -40,10 +43,10 @@ def backsolve(target,agent,time):
 def bestShotVector(car,ball_location,target_start,target_stop):
     relative = (ball_location-car.location)
     if target_stop != None:
-        left_post_vector = (target_start-ball_location)#.normalize()
-        right_post_vector = (target_stop-ball_location)#.normalize()
+        left_post_vector = (target_start-ball_location)
+        right_post_vector = (target_stop-ball_location)
         return relative.clamp(left_post_vector,right_post_vector).normalize()
-    return relative.normalize()
+    return (target_start-ball_location).normalize()
 
 def cap(x, low, high):
     if x < low:
@@ -105,9 +108,6 @@ def shotValid(slices, shot):
     ma = slices[ma].physics.location
     slopes = Vector3(ma.x-mi.x,ma.y-mi.y,ma.z-mi.z) * (1 / dt)
     slice_intercept = Vector3(mi.x,mi.y,mi.z) + (slopes * time_from_mi)
-    #agent.gui.star(slice_intercept,(255,0,0,255))
-    #agent.gui.star(Vector3(mi.x,mi.y,mi.z),(0,255,0,255))
-    #agent.gui.star(Vector3(ma.x,ma.y,ma.z),(0,0,255,255))
     if (shot.ball - slice_intercept).magnitude() > 30:
         return False
     return True

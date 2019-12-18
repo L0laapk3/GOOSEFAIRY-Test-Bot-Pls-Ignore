@@ -159,7 +159,7 @@ class Vector3:
         if start.side(self) >= 0:
             pass
     def side(self,value):
-        temp = self.cross([0,0,1]).dot(value)
+        temp = self.cross([0,0,-1]).dot(value)
         if temp > 0:
             return 1
         elif temp == 0:

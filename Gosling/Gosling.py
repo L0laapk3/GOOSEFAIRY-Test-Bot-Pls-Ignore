@@ -4,6 +4,7 @@ from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.agents.base_agent import  SimpleControllerState
 from rlbot.utils.game_state_util import GameState, BallState, CarState, Physics, Vector3 as vector3, Rotator
+from rlbot.utils.structures.quick_chats import QuickChats
 
 from objects import *
 from routines import *
@@ -41,6 +42,8 @@ class Gosling(BaseAgent):
         self.made_kickoff_routine = False
 
         self.gui = gui(self,False) #True to enable GUI
+        
+        self.match_ended = False
 
     def watchdog(self):
         """
@@ -54,42 +57,52 @@ class Gosling(BaseAgent):
         """
         1v1 Strategy
         """
-        left = Vector3(-3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
-        right = Vector3(3200*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
-        shots = shotFinder(self,self.foe_goal.left_post, self.foe_goal.right_post)
+        left = Vector3(-4100*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
+        right = Vector3(4100*side(self.team),self.ball.location[1]+(400*side(not self.team)),92)
+        shots = shotFinder(self,self.foe_goal.right_post, self.foe_goal.left_post)
         upfields = shotFinder(self,left,right)
 
         if len(self.stack) > 0:
             if isinstance(self.stack[-1], goto) and (len(upfields) > 0 or len(shots) > 0):
                 self.stack = []
-            elif isinstance(self.stack[-1],shot) and len(shots)>0 and self.stack[-1].intercept_time -0.6 > soonest(shots).intercept_time:
+            elif isinstance(self.stack[-1],shot) and len(shots)>0 and self.stack[-1].intercept_time - 0.4 > soonest(shots).intercept_time:
                 self.stack = []
+            elif isinstance(self.stack[-1],simpleBoost) and (self.foes[0].location-self.ball.location).flatten().magnitude() < 2500 and shotConeRatio(self.foes[0], self.friend_goal.right_post, self.friend_goal.left_post) < 0.25:
+                self.stack = []
+                
             
         if len(self.stack) < 1:
-            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 1000:
+            if len(shots) > 0 and len(upfields) > 0 and (self.foes[0].location - self.ball.location).magnitude() < 3000 and shotConeRatio(self.foes[0], self.friend_goal.right_post, self.friend_goal.left_post) < -0.0:
                 soonest_shot = soonest(shots)
                 soonest_upfield = soonest(upfields)
                 if soonest_shot.intercept_time < soonest_upfield.intercept_time:
-                    self.stack.append(shot(soonest_shot))
+                    self.stack.append(soonest_shot)
                 else:
-                    self.stack.append(shot(soonest_upfield))                
+                    self.stack.append(soonest_upfield)                
             elif len(shots) > 0:
-                self.stack.append(shot(soonest(shots)))
+                self.stack.append(soonest(shots))
             elif len(upfields) > 0:
-                self.stack.append(shot(soonest(upfields)))   
-            elif self.me.boost < 50:                   
-                our_boosts = [x for x in self.large_boosts if (x.location-self.friend_goal.location).magnitude() < 7000 and x.active]
-                closest = our_boosts[0]
-                for boost in our_boosts:
-                    if (self.me.location-boost.location).magnitude() < (self.me.location-closest.location).magnitude():
-                        closest = boost
-                self.stack.append(simpleBoost(closest))
-            else:
+                self.stack.append(soonest(upfields))
+            elif (self.foes[0].location-self.ball.location).flatten().magnitude() < 2500 and shotConeRatio(self.foes[0], self.friend_goal.right_post, self.friend_goal.left_post) < 0.25:
                 self.stack.append(goto(self.friend_goal.location))
+            elif self.me.boost < 30:
+                our_boosts = [x for x in self.large_boosts if x.active and side(self.team)*(x.location[1] - self.me.location[1]) +550 > 0 ]
+                if len(our_boosts) > 0:
+                    closest = our_boosts[0]
+                    for boost in our_boosts:
+                        if (self.me.location-boost.location).magnitude() < (self.me.location-closest.location).magnitude():
+                            closest = boost
+                    self.stack.append(simpleBoost(closest))
+                else:
+                    self.stack.append(goto(self.friend_goal.location))
+            else:
+                clears = shotFinder(self, self.friend_goal.right_post,self.friend_goal.left_post)
+                if True == False:
+                    self.stack.append(soonest(clears))
+                else:
+                    self.stack.append(goto(self.friend_goal.location))          
 
-                
-
-    def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
+    def get_output(self, packet: GameTickPacket) -> SimpleControllerState:      
         self.preprocess(packet)
         self.c.__init__()
         self.watchdog()
@@ -109,6 +122,9 @@ class Gosling(BaseAgent):
         for pad in self.all_boosts: pad.update(packet.game_boosts)
 
         self.kickoff = packet.game_info.is_round_active and packet.game_info.is_kickoff_pause
+        if packet.game_info.is_match_ended != self.match_ended:
+            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.PostGame_Gg)
+        self.match_ended = packet.game_info.is_match_ended
 
         if self.need_setup:
             for i in range(packet.num_cars):
